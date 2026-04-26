@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGVSA · Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #f0f4f8;
+  --surface: #ffffff;
+  --primary: #1e3a5f;
+  --accent:  #2563eb;
+  --text:    #1e293b;
+  --muted:   #64748b;
+  --border:  #e2e8f0;
+  --green:   #15803d;
+  --red:     #dc2626;
+  --orange:  #c2410c;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 13px;
+}
+
+/* ── HEADER ── */
+.app-header {
+  background: var(--primary);
+  color: white;
+  padding: 14px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-left h1 { font-size: 17px; font-weight: 700; }
+.header-left span { font-size: 11px; opacity: 0.65; display: block; margin-top: 2px; }
+.header-right { display: flex; gap: 10px; align-items: center; }
+
+.year-select {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+.year-select option { background: #1e3a5f; }
+
+.btn-update {
+  background: #2563eb;
+  border: none;
+  color: white;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .15s;
+}
+.btn-update:hover { background: #1d4ed8; }
+.btn-update:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── TABS ── */
+.tabs-nav {
+  background: white;
+  border-bottom: 2px solid var(--border);
+  padding: 0 24px;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs-nav::-webkit-scrollbar { display: none; }
+.tab-btn {
+  padding: 11px 18px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+}
+.tab-btn:hover { color: var(--accent); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── PANEL LATERAL ── */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 200;
+}
+.overlay.open { display: block; }
+
+.side-panel {
+  position: fixed;
+  top: 0;
+  right: -420px;
+  width: 420px;
+  max-width: 100vw;
+  height: 100vh;
+  background: white;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.18);
+  z-index: 201;
+  display: flex;
+  flex-direction: column;
+  transition: right .25s ease;
+  overflow-y: auto;
+}
+.side-panel.open { right: 0; }
+
+.panel-header {
+  background: var(--primary);
+  color: white;
+  padding: 18px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.panel-header h2 { font-size: 15px; font-weight: 700; }
+.panel-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  opacity: 0.8;
+}
+.panel-close:hover { opacity: 1; }
+
+.panel-body { padding: 22px; flex: 1; }
+
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.form-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.panel-divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
+.btn-submit {
+  width: 100%;
+  padding: 12px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-submit:hover:not(:disabled) { background: #1d4ed8; }
+.btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.update-log {
+  margin-top: 18px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 12px;
+  line-height: 1.7;
+  display: none;
+}
+.update-log.visible { display: block; }
+.log-ok   { color: var(--green); font-weight: 600; }
+.log-err  { color: var(--red);   font-weight: 600; }
+.log-warn { color: #92400e; }
+.log-item { color: var(--muted); }
+
+.sin-mapear-details { margin-top: 10px; max-height: 240px; overflow-y: auto; }
+.sin-item { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid #f1f5f9; font-size:11px; }
+.sin-item-nombre { color: var(--text); flex:1; }
+.sin-item-monto  { color: var(--muted); margin-left: 10px; white-space:nowrap; }
+
+/* ── SPINNER ── */
+.spin { animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── LOADING GLOBAL ── */
+.loading-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 70vh;
+  flex-direction: column;
+  gap: 16px;
+  color: var(--muted);
+}
+.loading-screen .spin { font-size: 32px; }
+
+/* ── ALERTA MARGEN ── */
+.alert-banner {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-left: 4px solid var(--red);
+  padding: 10px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #991b1b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── MAIN ── */
+.main { padding: 18px 22px; max-width: 1700px; margin: 0 auto; }
+
+/* ── CARDS ── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.card {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 14px 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  border: 1px solid var(--border);
+}
+.card-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.card-value  { font-size: 24px; font-weight: 700; line-height: 1; }
+.card-sub    { font-size: 11px; color: var(--muted); margin-top: 5px; }
+.card-period { font-size: 11px; color: var(--accent); margin-top: 5px; font-weight: 500; }
+.green { color: var(--green); }
+.red   { color: var(--red); }
+
+/* ── CHARTS ── */
+.charts {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.charts-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.charts-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.chart-card {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  border: 1px solid var(--border);
+}
+.chart-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+.chart-card canvas { max-height: 220px; }
+.chart-card.tall canvas { max-height: 320px; }
+
+/* ── TABLE ── */
+.table-card {
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.table-toolbar {
+  padding: 10px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--border);
+}
+.table-toolbar h2  { font-size: 13px; font-weight: 600; }
+.table-toolbar span { font-size: 11px; color: var(--muted); }
+.table-scroll { overflow-x: auto; }
+
+table { border-collapse: collapse; width: 100%; }
+th, td {
+  padding: 5px 10px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid #f1f5f9;
+}
+th:first-child, td:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 210px;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 16px;
+  border-right: 2px solid var(--border);
+}
+thead th {
+  background: var(--primary);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  position: sticky;
+  top: 0;
+}
+thead th:first-child { z-index: 10; }
+
+tr.r-sep td         { height: 4px; background: var(--bg); border: none; padding: 0; }
+tr.r-section td     { background: #e8edf4; font-weight: 700; font-size: 10px; color: var(--primary); text-transform: uppercase; letter-spacing: 0.6px; padding-top: 6px; padding-bottom: 4px; }
+tr.r-dato td        { background: white; }
+tr.r-dato:hover td  { background: #f8fafc; }
+tr.r-subtotal td    { background: #f1f5f9; font-weight: 600; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
+tr.r-margen td      { background: #f0fdf4; font-weight: 700; color: var(--green); font-size: 13px; border-top: 2px solid #86efac; }
+tr.r-diferencia td  { font-weight: 700; font-size: 13px; background: #fefce8; border-top: 1px solid #fde047; }
+tr.r-pct td         { background: #fafafa; color: var(--muted); font-size: 12px; }
+tr.r-usd td         { background: #eff6ff; color: #1d4ed8; }
+tr.r-tc td          { background: #fefce8; color: #854d0e; font-weight: 600; }
+tr.r-top td         { background: white; }
+tr.r-top:hover td   { background: #f8fafc; }
+tr.r-top td:nth-child(2) { font-weight: 600; }
+tr.r-top td.rank-num { color: var(--muted); font-size: 11px; width: 30px; }
+tr.r-cobrar td      { background: white; }
+tr.r-cobrar:hover td { background: #fff7ed; }
+tr.r-cobrar-total td { background: #fef9c3; font-weight: 700; }
+
+.nn { color: #dc2626; }
+.nz { color: #94a3b8; }
+.nd { color: #cbd5e1; }
+
+.no-data { text-align: center; padding: 70px 20px; color: var(--muted); }
+.no-data h2 { font-size: 22px; margin-bottom: 10px; color: var(--text); }
+.no-data p  { font-size: 14px; line-height: 1.7; }
+
+/* ── RANKING BARS ── */
+.rank-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 160px; }
+.rank-bar-bg   { flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+.rank-bar-fill { height: 100%; border-radius: 3px; background: var(--accent); }
+.rank-bar-fill.egr { background: #f87171; }
+
+.yoy-gain  { color: var(--green); font-weight: 600; }
+.yoy-loss  { color: var(--red);   font-weight: 600; }
+
+@media (max-width: 1200px) {
+  .charts-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 1000px) {
+  .cards  { grid-template-columns: repeat(2,1fr); }
+  .charts, .charts-2, .charts-3 { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .main { padding: 10px; }
+  .cards { grid-template-columns: 1fr 1fr; }
+  .side-panel { width: 100vw; }
+}
+</style>
+</head>
+<body>
+
+<!-- Panel lateral de actualización -->
+<div class="overlay" id="overlay" onclick="cerrarPanel()"></div>
+<div class="side-panel" id="sidePanel">
+  <div class="panel-header">
+    <h2>📥 Actualizar desde Colppy</h2>
+    <button class="panel-close" onclick="cerrarPanel()">✕</button>
+  </div>
+  <div class="panel-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">Desde</label>
+        <input class="form-input" type="month" id="inputMesDesde" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hasta</label>
+        <input class="form-input" type="month" id="inputMesHasta" />
+      </div>
+    </div>
+    <div class="form-hint" style="margin-top:-10px;margin-bottom:14px">Para un solo mes, ponés el mismo en ambos campos.</div>
+    <hr class="panel-divider">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Datos opcionales</div>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:10px 12px;font-size:11px;color:#1d4ed8;margin-bottom:16px">
+      💵 El tipo de cambio (blue y oficial) se obtiene automáticamente del último día hábil del mes desde <strong>bluelytics.com.ar</strong>.<br>
+      <span style="color:var(--muted)">Podés sobreescribirlo si necesitás un valor específico:</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">Blue (opcional)</label>
+        <input class="form-input" type="number" id="inputBlue" placeholder="auto" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Oficial (opcional)</label>
+        <input class="form-input" type="number" id="inputOficial" placeholder="auto" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Retiro Socio ($)</label>
+      <input class="form-input" type="number" id="inputRetiro" placeholder="ej: 5000000" />
+    </div>
+    <button class="btn-submit" id="btnActualizar" onclick="ejecutarActualizacion()">
+      <span id="btnIcon">🔄</span>
+      <span id="btnText">Actualizar</span>
+    </button>
+
+    <hr class="panel-divider" style="margin-top:18px">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Actualización rápida</div>
+    <button class="btn-submit" id="btnTC" onclick="actualizarSoloTC()"
+      style="background:#0f766e;margin-top:0">
+      <span id="btnTCIcon">💵</span>
+      <span id="btnTCText">Actualizar solo tipos de cambio</span>
+    </button>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">
+      Recarga el blue y oficial de todos los meses ya guardados sin volver a bajar facturas de Colppy.
+    </div>
+    <div class="update-log" id="updateLog"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="loading-screen">
+    <span class="spin">⟳</span>
+    <span>Cargando datos...</span>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  DEFINICIÓN DEL CUADRO
+// ═══════════════════════════════════════════════════════
+const FILAS = [
+  { t:'section',    label:'INGRESOS' },
+  { t:'dato',       label:'Honorarios Cons',                 key:'i.honorarios_cons' },
+  { t:'dato',       label:'Honorarios Si-ges / Libre Deuda', key:'i.honorarios_sigeslibre' },
+  { t:'dato',       label:'Honorarios Prov',                 key:'i.honorarios_prov' },
+  { t:'dato',       label:'Honorarios Atos',                 key:'i.honorarios_atos' },
+  { t:'dato',       label:'Intereses por fondos',            key:'i.intereses' },
+  { t:'subtotal',   label:'SUBTOTAL INGRESOS',               calc:'subtotal_ingresos' },
+  { t:'pct',        label:'% Sueldos / Facturación',         calc:'pct_sueldos', fmt:'pct' },
+  { t:'sep' },
+  { t:'section',    label:'EGRESOS' },
+  { t:'dato',       label:'Sueldos I',                       key:'e.sueldos_i' },
+  { t:'dato',       label:'Sueldos II',                      key:'e.sueldos_ii' },
+  { t:'dato',       label:'Gastos Personal',                 key:'e.gastos_personal' },
+  { t:'dato',       label:'F931',                            key:'e.f931' },
+  { t:'dato',       label:'ARCA',                            key:'e.arca' },
+  { t:'dato',       label:'Servicios',                       key:'e.servicios' },
+  { t:'dato',       label:'Mantenimiento',                   key:'e.mantenimiento' },
+  { t:'dato',       label:'Honorarios (externos)',           key:'e.honorarios' },
+  { t:'dato',       label:'Correo',                         key:'e.correo' },
+  { t:'dato',       label:'Gastos Bancarios',               key:'e.gastos_bancarios' },
+  { t:'dato',       label:'Pérdida AGVSA',                  key:'e.perdida_agvsa' },
+  { t:'dato',       label:'Atos Fede',                      key:'e.atos_fede' },
+  { t:'subtotal',   label:'SUBTOTAL EGRESOS',               calc:'subtotal_egresos' },
+  { t:'sep' },
+  { t:'margen',     label:'MARGEN BRUTO',                   calc:'margen_bruto' },
+  { t:'dato',       label:'Retiro Socio',                   key:'retiro_socio' },
+  { t:'diferencia', label:'DIFERENCIA',                     calc:'diferencia' },
+  { t:'pct',        label:'Renta sobre facturación',        calc:'renta', fmt:'pct' },
+  { t:'sep' },
+  { t:'section',    label:'EN DÓLARES — Blue' },
+  { t:'usd',        label:'Facturación USD',                calc:'fac_usd_blue' },
+  { t:'usd',        label:'Egresos USD',                    calc:'egr_usd_blue' },
+  { t:'usd',        label:'Margen USD',                     calc:'margen_usd_blue' },
+  { t:'sep' },
+  { t:'section',    label:'EN DÓLARES — Oficial' },
+  { t:'usd',        label:'Facturación USD',                calc:'fac_usd_ofic' },
+  { t:'usd',        label:'Egresos USD',                    calc:'egr_usd_ofic' },
+  { t:'usd',        label:'Margen USD',                     calc:'margen_usd_ofic' },
+  { t:'sep' },
+  { t:'section',    label:'TIPO DE CAMBIO' },
+  { t:'tc',         label:'Dólar Blue',                     key:'tc.blue' },
+  { t:'tc',         label:'Dólar Oficial',                  key:'tc.oficial' },
+];
+
+// Categorías de egresos para gráfico de evolución
+const CAT_EGRESOS = [
+  { key:'sueldos_i',       label:'Sueldos I',          color:'#f87171' },
+  { key:'sueldos_ii',      label:'Sueldos II',          color:'#fb923c' },
+  { key:'gastos_personal', label:'Gastos Personal',     color:'#fbbf24' },
+  { key:'f931',            label:'F931',                color:'#a3e635' },
+  { key:'arca',            label:'ARCA',                color:'#34d399' },
+  { key:'servicios',       label:'Servicios',           color:'#22d3ee' },
+  { key:'mantenimiento',   label:'Mantenimiento',       color:'#60a5fa' },
+  { key:'honorarios',      label:'Honorarios ext.',     color:'#818cf8' },
+  { key:'correo',          label:'Correo',              color:'#c084fc' },
+  { key:'gastos_bancarios',label:'Gtos. Bancarios',     color:'#f472b6' },
+  { key:'perdida_agvsa',   label:'Pérdida AGVSA',       color:'#94a3b8' },
+  { key:'atos_fede',       label:'Atos Fede',           color:'#cbd5e1' },
+];
+
+// Umbral de alerta de margen (%)
+const ALERTA_MARGEN_PCT = 15;
+
+// ═══════════════════════════════════════════════════════
+//  ESTADO GLOBAL
+// ═══════════════════════════════════════════════════════
+let AGVSA_DATA = { generado: null, meses: [] };
+let yearFiltro = 'todos';
+let tabActual  = 'resultados';
+let charts = {};
+
+// ═══════════════════════════════════════════════════════
+//  CARGA INICIAL
+// ═══════════════════════════════════════════════════════
+async function cargarDatos() {
+  try {
+    const r = await fetch('/api/datos');
+    if (!r.ok) throw new Error('Error al cargar datos');
+    AGVSA_DATA = await r.json();
+    render();
+  } catch(e) {
+    document.getElementById('app').innerHTML = `
+      <div class="app-header">
+        <div class="header-left"><h1>AGVSA · Dashboard</h1></div>
+      </div>
+      <div class="main">
+        <div class="no-data">
+          <h2>⚠️ Error al cargar datos</h2>
+          <p>${e.message}<br><br>Verificá que el servidor esté corriendo.</p>
+        </div>
+      </div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  PANEL LATERAL
+// ═══════════════════════════════════════════════════════
+function abrirPanel() {
+  const hoy  = new Date();
+  const yyyy = hoy.getFullYear();
+  const mm   = String(hoy.getMonth()+1).padStart(2,'0');
+  const val  = `${yyyy}-${mm}`;
+  document.getElementById('inputMesDesde').value = val;
+  document.getElementById('inputMesHasta').value = val;
+  document.getElementById('updateLog').className = 'update-log';
+  document.getElementById('updateLog').innerHTML = '';
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('sidePanel').classList.add('open');
+}
+
+// Genera lista de meses entre dos strings "YYYY-MM"
+function rangoMeses(desde, hasta) {
+  const meses = [];
+  let [y, m] = desde.split('-').map(Number);
+  const [yf, mf] = hasta.split('-').map(Number);
+  while (y < yf || (y === yf && m <= mf)) {
+    meses.push(`${y}-${String(m).padStart(2,'0')}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return meses;
+}
+function cerrarPanel() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('sidePanel').classList.remove('open');
+}
+
+async function ejecutarActualizacion() {
+  const desde   = document.getElementById('inputMesDesde').value;
+  const hasta   = document.getElementById('inputMesHasta').value;
+  const blue    = document.getElementById('inputBlue').value;
+  const oficial = document.getElementById('inputOficial').value;
+  const retiro  = document.getElementById('inputRetiro').value;
+  const log     = document.getElementById('updateLog');
+  const btn     = document.getElementById('btnActualizar');
+  const btnIcon = document.getElementById('btnIcon');
+  const btnText = document.getElementById('btnText');
+
+  if (!desde || !hasta) {
+    log.className = 'update-log visible';
+    log.innerHTML = '<span class="log-err">❌ Completá los campos Desde y Hasta.</span>';
+    return;
+  }
+  if (desde > hasta) {
+    log.className = 'update-log visible';
+    log.innerHTML = '<span class="log-err">❌ "Desde" no puede ser posterior a "Hasta".</span>';
+    return;
+  }
+
+  const meses = rangoMeses(desde, hasta);
+  btn.disabled = true;
+  btnIcon.className = 'spin'; btnIcon.textContent = '⟳';
+  log.className = 'update-log visible';
+
+  const cantMeses = meses.length;
+  btnText.textContent = `Descargando facturas...`;
+  log.innerHTML = `<span class="log-item">⬇️ Conectando a Colppy y descargando <strong>todas</strong> las facturas de una sola vez (puede tardar 1-2 min)...</span>`;
+
+  const body = { desde, hasta };
+  if (blue)    body.dolar_blue    = parseFloat(blue);
+  if (oficial) body.dolar_oficial = parseFloat(oficial);
+  if (retiro)  body.retiro_socio  = parseFloat(retiro);
+
+  try {
+    const r    = await fetch('/api/actualizar_rango', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+
+    if (data.ok) {
+      AGVSA_DATA = data.data;
+      let htmlLog = `<span class="log-ok">✅ ${cantMeses} mes${cantMeses!==1?'es':''} procesados correctamente</span><br><br>`;
+      (data.detalle || []).forEach(d => {
+        htmlLog += `<span class="log-item">📅 ${d.periodo} — ${d.fv_count} ventas · ${d.fc_count} compras`;
+        if (d.sin_venta)  htmlLog += ` · <span class="log-warn">⚠ ${d.sin_venta} vta sin cat</span>`;
+        if (d.sin_compra) htmlLog += ` · <span class="log-warn">⚠ ${d.sin_compra} cmp sin cat</span>`;
+        htmlLog += `</span><br>`;
+      });
+      log.innerHTML = htmlLog;
+      render();
+    } else {
+      log.innerHTML = `<span class="log-err">❌ ${data.error}</span>`;
+    }
+  } catch(e) {
+    log.innerHTML = `<span class="log-err">❌ Error: ${e.message}</span>`;
+  }
+
+  btn.disabled = false;
+  btnIcon.className = ''; btnIcon.textContent = '🔄';
+  btnText.textContent = 'Actualizar';
+}
+
+async function actualizarSoloTC() {
+  const log     = document.getElementById('updateLog');
+  const btn     = document.getElementById('btnTC');
+  const btnIcon = document.getElementById('btnTCIcon');
+  const btnText = document.getElementById('btnTCText');
+
+  btn.disabled = true;
+  btnIcon.textContent = '⟳'; btnIcon.className = 'spin';
+  btnText.textContent = 'Actualizando...';
+  log.className = 'update-log visible';
+  log.innerHTML = '<span class="log-item">💵 Consultando tipos de cambio históricos...</span>';
+
+  try {
+    const r    = await fetch('/api/actualizar_tc', { method: 'POST' });
+    const data = await r.json();
+
+    if (data.ok) {
+      let html = `<span class="log-ok">✅ ${data.actualizados} mes${data.actualizados!==1?'es':''} actualizados</span><br><br>`;
+      (data.detalle || []).forEach(d => {
+        html += `<span class="log-item">📅 ${d.mes} — Blue $${d.blue?.toLocaleString('es-AR')} · Oficial $${d.oficial?.toLocaleString('es-AR')}</span><br>`;
+      });
+      if (data.errores > 0) {
+        html += `<br><span class="log-warn">⚠ ${data.errores} mes${data.errores!==1?'es':''} sin TC (sin datos históricos disponibles)</span>`;
+      }
+      log.innerHTML = html;
+      // Recargar datos para reflejar los TC nuevos
+      const rd = await fetch('/api/datos');
+      AGVSA_DATA = await rd.json();
+      render();
+    } else {
+      log.innerHTML = `<span class="log-err">❌ ${data.error}</span>`;
+    }
+  } catch(e) {
+    log.innerHTML = `<span class="log-err">❌ Error: ${e.message}</span>`;
+  }
+
+  btn.disabled = false;
+  btnIcon.className = ''; btnIcon.textContent = '💵';
+  btnText.textContent = 'Actualizar solo tipos de cambio';
+}
+
+// ═══════════════════════════════════════════════════════
+//  CÁLCULOS
+// ═══════════════════════════════════════════════════════
+function calcular(mes) {
+  const i  = mes.ingresos    || {};
+  const e  = mes.egresos     || {};
+  const tc = mes.tipo_cambio || {};
+  // Suma dinámica de TODAS las categorías de ingresos/egresos
+  const subtotal_ingresos = Object.values(i).reduce((a,b)=>a+(Number(b)||0), 0);
+  const sueldos_total = (e.sueldos_i||0)+(e.sueldos_ii||0)+(e.gastos_personal||0)+(e.f931||0);
+  const subtotal_egresos = Object.values(e).reduce((a,b)=>a+(Number(b)||0), 0);
+  const margen_bruto = subtotal_ingresos - subtotal_egresos;
+  const retiro       = mes.retiro_socio || 0;
+  const diferencia   = margen_bruto - retiro;
+  const blue         = tc.blue    || 0;
+  const ofic         = tc.oficial || 0;
+  return {
+    subtotal_ingresos, subtotal_egresos, margen_bruto, diferencia,
+    pct_sueldos:     subtotal_ingresos>0 ? sueldos_total/subtotal_ingresos : null,
+    renta:           subtotal_ingresos>0 ? margen_bruto/subtotal_ingresos  : null,
+    fac_usd_blue:    blue ? subtotal_ingresos/blue : null,
+    egr_usd_blue:    blue ? subtotal_egresos/blue  : null,
+    margen_usd_blue: blue ? margen_bruto/blue      : null,
+    fac_usd_ofic:    ofic ? subtotal_ingresos/ofic : null,
+    egr_usd_ofic:    ofic ? subtotal_egresos/ofic  : null,
+    margen_usd_ofic: ofic ? margen_bruto/ofic      : null,
+  };
+}
+
+function getVal(mes, key) {
+  if (!key) return null;
+  if (key.startsWith('i.'))  return (mes.ingresos    ||{})[key.slice(2)] ?? null;
+  if (key.startsWith('e.'))  return (mes.egresos     ||{})[key.slice(2)] ?? null;
+  if (key.startsWith('tc.')) return (mes.tipo_cambio ||{})[key.slice(3)] ?? null;
+  if (key === 'retiro_socio') return mes.retiro_socio ?? null;
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════
+//  FORMATEO
+// ═══════════════════════════════════════════════════════
+const fmtARS = new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:0,maximumFractionDigits:0});
+const fmtUSD = new Intl.NumberFormat('es-AR',{style:'currency',currency:'USD',minimumFractionDigits:0,maximumFractionDigits:0});
+
+function fmtNum(v, isUsd, isPct, isTC) {
+  if (v == null) return `<span class="nd">—</span>`;
+  if (isPct)  return (v*100).toFixed(1)+'%';
+  if (isTC)   return '$'+Math.round(v).toLocaleString('es-AR');
+  if (v===0)  return `<span class="nz">$0</span>`;
+  const s = isUsd ? fmtUSD.format(Math.round(v)) : fmtARS.format(Math.round(v));
+  return v<0 ? `<span class="nn">${s}</span>` : s;
+}
+function fmtM(v) {
+  if (v==null) return '—';
+  const a=Math.abs(v), neg=v<0?'-':'';
+  if (a>=1e9)  return `${neg}$${(a/1e9).toFixed(1)}B`;
+  if (a>=1e6)  return `${neg}$${(a/1e6).toFixed(1)}M`;
+  if (a>=1e3)  return `${neg}$${(a/1e3).toFixed(0)}k`;
+  return `${neg}$${Math.round(a)}`;
+}
+function fmtUSDshort(v) {
+  if (v==null) return '—';
+  const a=Math.abs(v), neg=v<0?'-':'';
+  if (a>=1e6) return `${neg}U$D ${(a/1e6).toFixed(2)}M`;
+  if (a>=1e3) return `${neg}U$D ${(a/1e3).toFixed(1)}k`;
+  return `${neg}U$D ${Math.round(a).toLocaleString('es-AR')}`;
+}
+
+const MESES_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const MESES_LONG  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function labelCorto(p)  { const [y,m]=p.split('-'); return `${MESES_SHORT[+m-1]} ${y.slice(2)}`; }
+function labelLargo(p)  { const [y,m]=p.split('-'); return `${MESES_LONG[+m-1]} ${y}`; }
+
+function destroyCharts(...ids) {
+  ids.forEach(id => { if (charts[id]) { charts[id].destroy(); delete charts[id]; } });
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER PRINCIPAL
+// ═══════════════════════════════════════════════════════
+function render() {
+  const app = document.getElementById('app');
+  if (!(AGVSA_DATA.meses||[]).length) {
+    app.innerHTML = `
+      <div class="app-header">
+        <div class="header-left"><h1>AGVSA · Dashboard</h1></div>
+        <div class="header-right">
+          <button class="btn-update" onclick="abrirPanel()">📥 Actualizar desde Colppy</button>
+        </div>
+      </div>
+      <div class="main">
+        <div class="no-data">
+          <h2>📊 Todavía no hay datos</h2>
+          <p>Hacé click en <strong>Actualizar desde Colppy</strong> para cargar el primer mes.</p>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const todos = [...AGVSA_DATA.meses].sort((a,b)=>a.periodo.localeCompare(b.periodo));
+  const anios = [...new Set(todos.map(m=>m.periodo.slice(0,4)))].sort();
+  const mesesVisibles = yearFiltro==='todos' ? todos : todos.filter(m=>m.periodo.startsWith(yearFiltro));
+  const ultimoMes    = todos[todos.length-1];
+  const ultimoCalcs  = ultimoMes ? calcular(ultimoMes) : {};
+  const genDate      = AGVSA_DATA.generado
+    ? new Date(AGVSA_DATA.generado).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+    : '';
+
+  // Alerta de margen
+  let alertaHTML = '';
+  if (ultimoMes && ultimoCalcs.renta != null && ultimoCalcs.renta * 100 < ALERTA_MARGEN_PCT) {
+    alertaHTML = `<div class="alert-banner">⚠️ Margen en ${labelLargo(ultimoMes.periodo)}: <strong>${(ultimoCalcs.renta*100).toFixed(1)}%</strong> — por debajo del umbral del ${ALERTA_MARGEN_PCT}%</div>`;
+  }
+
+  const tabsHTML = `
+    <div class="tabs-nav">
+      <button class="tab-btn ${tabActual==='resultados'?'active':''}"  onclick="setTab('resultados')">📋 Estado de Resultados</button>
+      <button class="tab-btn ${tabActual==='consorcios'?'active':''}"  onclick="setTab('consorcios')">🏢 Consorcios</button>
+      <button class="tab-btn ${tabActual==='proveedores'?'active':''}" onclick="setTab('proveedores')">🏭 Proveedores</button>
+      <button class="tab-btn ${tabActual==='egresos'?'active':''}"     onclick="setTab('egresos')">📉 Evolución Egresos</button>
+      <button class="tab-btn ${tabActual==='anoanio'?'active':''}"     onclick="setTab('anoanio')">📆 Año a Año</button>
+      <button class="tab-btn ${tabActual==='cobrar'?'active':''}"      onclick="setTab('cobrar')">💳 Cuentas a Cobrar</button>
+      <button class="tab-btn ${tabActual==='caja'?'active':''}"        onclick="setTab('caja')">🏦 Flujo de Caja</button>
+      <button class="tab-btn ${tabActual==='sincat'?'active':''}"      onclick="setTab('sincat')">⚠️ Sin Categoría</button>
+    </div>`;
+
+  app.innerHTML = `
+    <div class="app-header">
+      <div class="header-left">
+        <h1>AGVSA · Dashboard</h1>
+        ${genDate ? `<span>Actualizado: ${genDate}</span>` : ''}
+      </div>
+      <div class="header-right">
+        <select class="year-select" onchange="setYear(this.value)">
+          <option value="todos" ${yearFiltro==='todos'?'selected':''}>Todos los años</option>
+          ${anios.map(a=>`<option value="${a}" ${yearFiltro===a?'selected':''}>${a}</option>`).join('')}
+        </select>
+        <button class="btn-update" onclick="enviarResumen()" id="btnMail" title="Enviar resumen por mail">📧</button>
+        <button class="btn-update" onclick="abrirPanel()">📥 Actualizar desde Colppy</button>
+      </div>
+    </div>
+    ${alertaHTML}
+    ${tabsHTML}
+    <div id="tabContent"></div>`;
+
+  renderTab(todos, mesesVisibles, ultimoMes, ultimoCalcs, anios);
+}
+
+function renderTab(todos, mesesVisibles, ultimoMes, ultimoCalcs, anios) {
+  const cont = document.getElementById('tabContent');
+  if (!cont) return;
+  // Destruir todos los charts antes de re-renderizar
+  destroyCharts('c1','c2','cEgr','cYoY','cYoYPct');
+
+  switch(tabActual) {
+    case 'resultados': cont.innerHTML = renderTabResultados(mesesVisibles, ultimoMes, ultimoCalcs); dibujarGraficosResultados(todos.slice(-18)); break;
+    case 'consorcios': cont.innerHTML = renderTabConsorcios(mesesVisibles); dibujarGraficoConsorcios(mesesVisibles); break;
+    case 'proveedores':cont.innerHTML = renderTabProveedores(mesesVisibles); dibujarGraficoProveedores(mesesVisibles); break;
+    case 'egresos':    cont.innerHTML = renderTabEgresos(mesesVisibles); dibujarGraficoEgresos(todos.slice(-18)); break;
+    case 'anoanio':    cont.innerHTML = renderTabAnoAnio(todos, anios); dibujarGraficoYoY(todos); break;
+    case 'cobrar':     cont.innerHTML = renderTabCobrar(); cargarCuentasCobrar(); break;
+    case 'caja':       cont.innerHTML = renderTabCaja();      cargarFlujoCaja(); break;
+    case 'sincat':     cont.innerHTML = renderTabSinCat();   cargarSinCat(); break;
+  }
+}
+
+// ── TAB: ESTADO DE RESULTADOS ──────────────────────────
+function renderTabResultados(mesesVisibles, ultimoMes, ultimoCalcs) {
+  return `<div class="main">
+    <div class="cards">${renderCards(ultimoMes, ultimoCalcs)}</div>
+    <div class="charts">
+      <div class="chart-card">
+        <div class="chart-title">Facturación vs Egresos vs Retiro (últimos 18 meses) — en millones $</div>
+        <canvas id="c1"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Margen bruto %</div>
+        <canvas id="c2"></canvas>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <h2>Estado de Resultados · ${yearFiltro==='todos'?'Histórico completo':yearFiltro}</h2>
+        <span>${mesesVisibles.length} mes${mesesVisibles.length!==1?'es':''}</span>
+      </div>
+      <div class="table-scroll">${renderTabla(mesesVisibles)}</div>
+    </div>
+  </div>`;
+}
+
+function renderCards(mes, c) {
+  if (!mes) return '<div class="card"><div class="card-label">Sin datos</div></div>';
+  const pctMb    = c.subtotal_ingresos>0 ? ` (${(c.margen_bruto/c.subtotal_ingresos*100).toFixed(1)}%)` : '';
+  const difClass = c.diferencia>=0 ? 'green' : 'red';
+  return `
+    <div class="card">
+      <div class="card-label">Facturación</div>
+      <div class="card-value">${fmtM(c.subtotal_ingresos)}</div>
+      <div class="card-period">${labelLargo(mes.periodo)}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Margen Bruto</div>
+      <div class="card-value ${c.margen_bruto>=0?'green':'red'}">${fmtM(c.margen_bruto)}</div>
+      <div class="card-sub">${pctMb} sobre facturación</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Diferencia (post retiro)</div>
+      <div class="card-value ${difClass}">${fmtM(c.diferencia)}</div>
+      <div class="card-sub">Retiro: ${fmtM(mes.retiro_socio||0)}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Facturación USD Blue</div>
+      <div class="card-value">${fmtUSDshort(c.fac_usd_blue)}</div>
+      <div class="card-sub">${(mes.tipo_cambio||{}).blue?`TC: $${(mes.tipo_cambio.blue).toLocaleString('es-AR')}`:'Sin TC'}</div>
+    </div>`;
+}
+
+// Construye índice {categoria → [{nombre, monto}]} por mes desde mes.todos
+function buildDetalleIdx(mes) {
+  const idx = {};
+  const todos = mes.todos || {};
+  for (const [tipo, lista] of [['venta', todos.venta||[]], ['compra', todos.compra||[]]]) {
+    for (const x of lista) {
+      if (!x.categoria) continue;
+      const k = (tipo === 'venta' ? 'i.' : 'e.') + x.categoria;
+      if (!idx[k]) idx[k] = [];
+      const ex = idx[k].find(e => e.nombre === x.nombre);
+      if (ex) ex.monto += x.monto;
+      else idx[k].push({nombre: x.nombre, monto: x.monto});
+    }
+  }
+  // Ordenar cada lista por monto desc
+  for (const k of Object.keys(idx)) idx[k].sort((a,b) => b.monto - a.monto);
+  return idx;
+}
+
+function renderTabla(meses) {
+  if (!meses.length) return '<p style="padding:20px;color:#64748b">No hay datos para el período.</p>';
+  const calcs   = meses.map(m => calcular(m));
+  const detIdxs = meses.map(m => buildDetalleIdx(m));
+
+  let h = '<table><thead><tr><th>Concepto</th>';
+  meses.forEach(m => { h += `<th>${labelCorto(m.periodo)}</th>`; });
+  h += '</tr></thead><tbody>';
+
+  FILAS.forEach(f => {
+    if (f.t==='sep')     { h += `<tr class="r-sep"><td colspan="${meses.length+1}"></td></tr>`; return; }
+    if (f.t==='section') { h += `<tr class="r-section"><td colspan="${meses.length+1}">${f.label}</td></tr>`; return; }
+
+    const cls = { dato:'r-dato', subtotal:'r-subtotal', margen:'r-margen',
+                  diferencia:'r-diferencia', pct:'r-pct', usd:'r-usd', tc:'r-tc' }[f.t] || 'r-dato';
+
+    // ¿Tiene detalle expandible?
+    const tieneDetalle = f.key && (f.key.startsWith('i.') || f.key.startsWith('e.'))
+      && detIdxs.some(idx => (idx[f.key]||[]).length > 0);
+
+    const rowId = f.key ? `det_${f.key.replace('.','_')}` : null;
+
+    h += `<tr class="${cls}" ${tieneDetalle ? `style="cursor:pointer" onclick="toggleDet('${rowId}')"` : ''}>`;
+    h += `<td>${tieneDetalle ? `<span style="color:var(--accent);margin-right:6px;font-size:10px" id="ico_${rowId}">▶</span>` : ''}${f.label}</td>`;
+
+    meses.forEach((mes,idx) => {
+      const val = f.key ? getVal(mes, f.key) : (calcs[idx][f.calc]??null);
+      h += `<td>${fmtNum(val, f.t==='usd', f.fmt==='pct', f.t==='tc')}</td>`;
+    });
+    h += '</tr>';
+
+    // Filas de detalle (ocultas por defecto)
+    if (tieneDetalle) {
+      // Recolectar todos los nombres únicos que aparecen en algún mes
+      const todosNombres = [...new Set(detIdxs.flatMap(idx => (idx[f.key]||[]).map(x=>x.nombre)))];
+      todosNombres.forEach(nombre => {
+        h += `<tr class="r-dato det-row" id="${rowId}" style="display:none;background:#f8fafc">`;
+        h += `<td style="padding-left:32px;color:var(--muted);font-size:11px">${nombre}</td>`;
+        meses.forEach((_,idx) => {
+          const item = (detIdxs[idx][f.key]||[]).find(x=>x.nombre===nombre);
+          h += `<td style="font-size:11px;color:var(--muted)">${item ? fmtM(item.monto) : '<span class="nd">—</span>'}</td>`;
+        });
+        h += '</tr>';
+      });
+    }
+  });
+
+  h += '</tbody></table>';
+  return h;
+}
+
+function toggleDet(rowId) {
+  const rows = document.querySelectorAll(`tr.det-row#${rowId}`);
+  const ico  = document.getElementById(`ico_${rowId}`);
+  const open = rows.length && rows[0].style.display !== 'none';
+  rows.forEach(r => r.style.display = open ? 'none' : '');
+  if (ico) ico.textContent = open ? '▶' : '▼';
+}
+
+function dibujarGraficosResultados(meses) {
+  if (!meses.length) return;
+  const labels = meses.map(m=>labelCorto(m.periodo));
+  const calcs  = meses.map(m=>calcular(m));
+  destroyCharts('c1','c2');
+  const c1 = document.getElementById('c1');
+  if (c1) {
+    charts['c1'] = new Chart(c1, {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          { label:'Egresos',      data:calcs.map(c=>+(c.subtotal_egresos/1e6).toFixed(2)), backgroundColor:'#f87171cc', stack:'a' },
+          { label:'Margen',       data:calcs.map(c=>c.margen_bruto>=0?+(c.margen_bruto/1e6).toFixed(2):0), backgroundColor:'#4ade80cc', stack:'a' },
+          { label:'Retiro Socio', data:meses.map(m=>+((m.retiro_socio||0)/1e6).toFixed(2)), backgroundColor:'#fbbf24cc', type:'line', borderColor:'#d97706', borderWidth:2, pointRadius:3, fill:false, yAxisID:'y' }
+        ]
+      },
+      options:{ responsive:true, maintainAspectRatio:true,
+        plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:12 } } },
+        scales:{ x:{ stacked:true, ticks:{font:{size:10}} }, y:{ stacked:true, ticks:{font:{size:10}, callback:v=>`$${v}M`} } }
+      }
+    });
+  }
+  const c2 = document.getElementById('c2');
+  if (c2) {
+    charts['c2'] = new Chart(c2, {
+      type:'line',
+      data:{ labels, datasets:[{ label:'Margen %', data:calcs.map(c=>c.renta!=null?+(c.renta*100).toFixed(1):null),
+        borderColor:'#3b82f6', backgroundColor:'#3b82f618', fill:true, tension:0.35, pointRadius:3, spanGaps:true }]
+      },
+      options:{ responsive:true, maintainAspectRatio:true,
+        plugins:{ legend:{ position:'bottom', labels:{font:{size:11}} },
+          annotation:{ annotations:[{ type:'line', yMin:ALERTA_MARGEN_PCT, yMax:ALERTA_MARGEN_PCT, borderColor:'red', borderWidth:1, borderDash:[4,4] }] }
+        },
+        scales:{ x:{ticks:{font:{size:10}}}, y:{ticks:{font:{size:10}, callback:v=>v+'%'}} }
+      }
+    });
+  }
+}
+
+// ── TAB: CONSORCIOS ────────────────────────────────────
+function renderTabConsorcios(meses) {
+  // Acumular ranking de todos los meses del período seleccionado
+  const acum = {};
+  meses.forEach(m => {
+    const cons = (m.detalles||{}).consorcios || [];
+    cons.forEach(c => { acum[c.nombre] = (acum[c.nombre]||0) + c.monto; });
+  });
+  const ranking = Object.entries(acum)
+    .map(([nombre,monto])=>({nombre,monto:Math.round(monto)}))
+    .filter(x=>x.monto>0)
+    .sort((a,b)=>b.monto-a.monto);
+
+  const top = ranking.slice(0, 20);
+  const total = ranking.reduce((s,x)=>s+x.monto, 0);
+  const maxMonto = top.length ? top[0].monto : 1;
+
+  const periodo = yearFiltro==='todos'
+    ? (meses.length ? `${labelCorto(meses[0].periodo)} – ${labelCorto(meses[meses.length-1].periodo)}` : '')
+    : yearFiltro;
+
+  let rows = '';
+  top.forEach((r,i) => {
+    const pct = total>0 ? (r.monto/total*100).toFixed(1) : '0';
+    const barW = Math.round(r.monto/maxMonto*100);
+    rows += `<tr class="r-top">
+      <td class="rank-num">${i+1}</td>
+      <td style="min-width:220px;max-width:280px;white-space:normal">${r.nombre}</td>
+      <td style="text-align:right">${fmtM(r.monto)}</td>
+      <td style="text-align:right">${pct}%</td>
+      <td style="min-width:140px"><div class="rank-bar-wrap"><div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${barW}%"></div></div></div></td>
+    </tr>`;
+  });
+
+  const tableHTML = ranking.length ? `
+    <div class="table-card">
+      <div class="table-toolbar">
+        <h2>Ranking de Consorcios por Facturación · ${periodo}</h2>
+        <span>${ranking.length} consorcios · Total: ${fmtM(total)}</span>
+      </div>
+      <div class="table-scroll">
+        <table><thead><tr>
+          <th style="width:40px">#</th>
+          <th style="text-align:left">Consorcio</th>
+          <th>Facturado</th>
+          <th>% del total</th>
+          <th style="min-width:140px">Participación</th>
+        </tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>` : '<div class="main"><div class="no-data"><h2>Sin datos de consorcios</h2><p>Actualizá un mes para ver el ranking.</p></div></div>';
+
+  return `<div class="main">
+    <div class="charts-2">
+      <div class="chart-card tall">
+        <div class="chart-title">Top 10 consorcios — ${periodo}</div>
+        <canvas id="cCons1"></canvas>
+      </div>
+      <div class="chart-card tall">
+        <div class="chart-title">Evolución top 5 consorcios por mes</div>
+        <canvas id="cCons2"></canvas>
+      </div>
+    </div>
+    ${tableHTML}
+  </div>`;
+}
+
+function dibujarGraficoConsorcios(meses) {
+  if (!meses.length) return;
+  // Top 10 acumulado (horizontal bar)
+  const acum = {};
+  meses.forEach(m => {
+    ((m.detalles||{}).consorcios||[]).forEach(c=>{ acum[c.nombre]=(acum[c.nombre]||0)+c.monto; });
+  });
+  const top10 = Object.entries(acum).map(([n,v])=>({n,v})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,10);
+
+  const c1 = document.getElementById('cCons1');
+  if (c1 && top10.length) {
+    charts['cCons1'] = new Chart(c1, {
+      type:'bar',
+      data:{ labels:top10.map(x=>x.n), datasets:[{ data:top10.map(x=>+(x.v/1e6).toFixed(2)), backgroundColor:'#3b82f6cc', borderColor:'#2563eb', borderWidth:1 }] },
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false} },
+        scales:{ x:{ ticks:{callback:v=>`$${v}M`, font:{size:10}} }, y:{ ticks:{font:{size:10}} } }
+      }
+    });
+  }
+
+  // Evolución top 5 por mes (line)
+  const top5names = top10.slice(0,5).map(x=>x.n);
+  const COLORS5 = ['#3b82f6','#f87171','#4ade80','#fbbf24','#a78bfa'];
+  const labels = meses.map(m=>labelCorto(m.periodo));
+  const datasets = top5names.map((nombre,i) => ({
+    label: nombre.length>25 ? nombre.slice(0,22)+'…' : nombre,
+    data:  meses.map(m=>{ const c=((m.detalles||{}).consorcios||[]).find(x=>x.nombre===nombre); return c?+(c.monto/1e6).toFixed(2):0; }),
+    borderColor: COLORS5[i], backgroundColor: COLORS5[i]+'22', fill:false, tension:0.3, pointRadius:3
+  }));
+
+  const c2 = document.getElementById('cCons2');
+  if (c2 && top5names.length) {
+    charts['cCons2'] = new Chart(c2, {
+      type:'line', data:{ labels, datasets },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom', labels:{ font:{size:10}, boxWidth:12 } } },
+        scales:{ x:{ticks:{font:{size:10}}}, y:{ticks:{callback:v=>`$${v}M`, font:{size:10}}} }
+      }
+    });
+  }
+}
+
+// ── TAB: PROVEEDORES ───────────────────────────────────
+function renderTabProveedores(meses) {
+  const acum = {};
+  meses.forEach(m => {
+    ((m.detalles||{}).proveedores||[]).forEach(p=>{ acum[p.nombre]=(acum[p.nombre]||0)+p.monto; });
+  });
+  const ranking = Object.entries(acum)
+    .map(([nombre,monto])=>({nombre,monto:Math.round(monto)}))
+    .filter(x=>x.monto>0)
+    .sort((a,b)=>b.monto-a.monto);
+
+  const top = ranking.slice(0,20);
+  const total = ranking.reduce((s,x)=>s+x.monto, 0);
+  const maxMonto = top.length ? top[0].monto : 1;
+  const periodo = yearFiltro==='todos'
+    ? (meses.length ? `${labelCorto(meses[0].periodo)} – ${labelCorto(meses[meses.length-1].periodo)}` : '') : yearFiltro;
+
+  let rows = '';
+  top.forEach((r,i) => {
+    const pct  = total>0 ? (r.monto/total*100).toFixed(1):'0';
+    const barW = Math.round(r.monto/maxMonto*100);
+    rows += `<tr class="r-top">
+      <td class="rank-num">${i+1}</td>
+      <td style="min-width:220px;max-width:280px;white-space:normal">${r.nombre}</td>
+      <td style="text-align:right">${fmtM(r.monto)}</td>
+      <td style="text-align:right">${pct}%</td>
+      <td style="min-width:140px"><div class="rank-bar-wrap"><div class="rank-bar-bg"><div class="rank-bar-fill egr" style="width:${barW}%"></div></div></div></td>
+    </tr>`;
+  });
+
+  const tableHTML = ranking.length ? `
+    <div class="table-card">
+      <div class="table-toolbar">
+        <h2>Proveedores más caros · ${periodo}</h2>
+        <span>${ranking.length} proveedores · Total: ${fmtM(total)}</span>
+      </div>
+      <div class="table-scroll">
+        <table><thead><tr>
+          <th style="width:40px">#</th>
+          <th style="text-align:left">Proveedor</th>
+          <th>Pagado</th>
+          <th>% del total</th>
+          <th style="min-width:140px">Participación</th>
+        </tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>` : '<div class="main"><div class="no-data"><h2>Sin datos de proveedores</h2><p>Actualizá un mes para ver el ranking.</p></div></div>';
+
+  return `<div class="main">
+    <div class="charts-2">
+      <div class="chart-card tall">
+        <div class="chart-title">Top 10 proveedores — ${periodo}</div>
+        <canvas id="cProv1"></canvas>
+      </div>
+      <div class="chart-card tall">
+        <div class="chart-title">Evolución top 5 proveedores por mes</div>
+        <canvas id="cProv2"></canvas>
+      </div>
+    </div>
+    ${tableHTML}
+  </div>`;
+}
+
+function dibujarGraficoProveedores(meses) {
+  if (!meses.length) return;
+  const acum = {};
+  meses.forEach(m => {
+    ((m.detalles||{}).proveedores||[]).forEach(p=>{ acum[p.nombre]=(acum[p.nombre]||0)+p.monto; });
+  });
+  const top10 = Object.entries(acum).map(([n,v])=>({n,v})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,10);
+
+  const c1 = document.getElementById('cProv1');
+  if (c1 && top10.length) {
+    charts['cProv1'] = new Chart(c1, {
+      type:'bar',
+      data:{ labels:top10.map(x=>x.n), datasets:[{ data:top10.map(x=>+(x.v/1e6).toFixed(2)), backgroundColor:'#f87171cc', borderColor:'#dc2626', borderWidth:1 }] },
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false} },
+        scales:{ x:{ ticks:{callback:v=>`$${v}M`, font:{size:10}} }, y:{ ticks:{font:{size:10}} } }
+      }
+    });
+  }
+
+  const top5names = top10.slice(0,5).map(x=>x.n);
+  const COLORS5 = ['#f87171','#fbbf24','#4ade80','#60a5fa','#c084fc'];
+  const labels = meses.map(m=>labelCorto(m.periodo));
+  const datasets = top5names.map((nombre,i)=>({
+    label: nombre.length>25 ? nombre.slice(0,22)+'…' : nombre,
+    data:  meses.map(m=>{ const p=((m.detalles||{}).proveedores||[]).find(x=>x.nombre===nombre); return p?+(p.monto/1e6).toFixed(2):0; }),
+    borderColor:COLORS5[i], backgroundColor:COLORS5[i]+'22', fill:false, tension:0.3, pointRadius:3
+  }));
+
+  const c2 = document.getElementById('cProv2');
+  if (c2 && top5names.length) {
+    charts['cProv2'] = new Chart(c2, {
+      type:'line', data:{ labels, datasets },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom', labels:{ font:{size:10}, boxWidth:12 } } },
+        scales:{ x:{ticks:{font:{size:10}}}, y:{ticks:{callback:v=>`$${v}M`, font:{size:10}}} }
+      }
+    });
+  }
+}
+
+// ── TAB: EVOLUCIÓN EGRESOS ─────────────────────────────
+function renderTabEgresos(meses) {
+  return `<div class="main">
+    <div class="charts">
+      <div class="chart-card" style="grid-column:1/-1">
+        <div class="chart-title">Evolución de egresos por categoría (últimos 18 meses) — en millones $</div>
+        <canvas id="cEgr" style="max-height:320px"></canvas>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <h2>Egresos por categoría · ${yearFiltro==='todos'?'Histórico completo':yearFiltro}</h2>
+        <span>${meses.length} mes${meses.length!==1?'es':''}</span>
+      </div>
+      <div class="table-scroll">${renderTablaEgresos(meses)}</div>
+    </div>
+  </div>`;
+}
+
+function renderTablaEgresos(meses) {
+  if (!meses.length) return '<p style="padding:20px;color:#64748b">Sin datos.</p>';
+  let h = '<table><thead><tr><th>Categoría</th>';
+  meses.forEach(m=>{ h+=`<th>${labelCorto(m.periodo)}</th>`; });
+  h+='</tr></thead><tbody>';
+  CAT_EGRESOS.forEach(cat => {
+    h+=`<tr class="r-dato"><td>${cat.label}</td>`;
+    meses.forEach(m=>{ const v=(m.egresos||{})[cat.key]||null; h+=`<td>${v!=null?fmtM(v):'<span class="nd">—</span>'}</td>`; });
+    h+='</tr>';
+  });
+  // Total
+  h+=`<tr class="r-subtotal"><td>TOTAL EGRESOS</td>`;
+  meses.forEach(m=>{
+    const tot = Object.values(m.egresos||{}).reduce((a,b)=>a+(Number(b)||0),0);
+    h+=`<td>${fmtM(tot)}</td>`;
+  });
+  h+='</tr></tbody></table>';
+  return h;
+}
+
+function dibujarGraficoEgresos(meses) {
+  if (!meses.length) return;
+  const labels = meses.map(m=>labelCorto(m.periodo));
+  const datasets = CAT_EGRESOS.map(cat=>({
+    label: cat.label,
+    data:  meses.map(m=>{ const v=(m.egresos||{})[cat.key]||0; return +(v/1e6).toFixed(2); }),
+    backgroundColor: cat.color+'cc', stack:'e'
+  }));
+  const c = document.getElementById('cEgr');
+  if (c) {
+    charts['cEgr'] = new Chart(c, {
+      type:'bar', data:{labels, datasets},
+      options:{ responsive:true, maintainAspectRatio:true,
+        plugins:{ legend:{ position:'bottom', labels:{font:{size:10}, boxWidth:10} } },
+        scales:{ x:{stacked:true, ticks:{font:{size:10}}}, y:{stacked:true, ticks:{font:{size:10}, callback:v=>`$${v}M`}} }
+      }
+    });
+  }
+}
+
+// ── TAB: AÑO A AÑO ────────────────────────────────────
+function renderTabAnoAnio(todos, anios) {
+  if (anios.length < 2) {
+    return `<div class="main"><div class="no-data"><h2>Necesitás al menos 2 años de datos</h2><p>Cargá más meses para ver la comparación año a año.</p></div></div>`;
+  }
+  const mesRows = {};
+  todos.forEach(m => {
+    const [anio, mes] = m.periodo.split('-');
+    if (!mesRows[mes]) mesRows[mes] = {};
+    mesRows[mes][anio] = calcular(m);
+  });
+
+  let rows = '';
+  Object.keys(mesRows).sort().forEach(mes => {
+    const calcs = mesRows[mes];
+    const mesLabel = MESES_LONG[+mes-1];
+    rows += `<tr class="r-section"><td colspan="${anios.length*2+1}">${mesLabel}</td></tr>`;
+    const rowDef = [
+      { label:'Facturación', key:'subtotal_ingresos' },
+      { label:'Egresos',     key:'subtotal_egresos'  },
+      { label:'Margen',      key:'margen_bruto'      },
+      { label:'Margen %',    key:'renta', pct:true   },
+    ];
+    rowDef.forEach(r => {
+      rows += `<tr class="r-dato"><td style="padding-left:28px">${r.label}</td>`;
+      anios.forEach((a, i) => {
+        const v = calcs[a] ? calcs[a][r.key] : null;
+        rows += `<td>${v!=null ? (r.pct ? (v*100).toFixed(1)+'%' : fmtM(v)) : '<span class="nd">—</span>'}</td>`;
+        // Variación vs año anterior
+        if (i>0) {
+          const prev = calcs[anios[i-1]] ? calcs[anios[i-1]][r.key] : null;
+          if (v!=null && prev!=null && prev!==0 && !r.pct) {
+            const delta = (v-prev)/Math.abs(prev)*100;
+            const cls   = delta>=0 ? 'yoy-gain' : 'yoy-loss';
+            rows += `<td class="${cls}">${delta>=0?'+':''}${delta.toFixed(0)}%</td>`;
+          } else { rows += '<td></td>'; }
+        }
+      });
+      rows += '</tr>';
+    });
+  });
+
+  let thead = '<th>Período</th>';
+  anios.forEach((a,i) => {
+    thead += `<th>${a}</th>`;
+    if (i>0) thead += `<th>vs ${anios[i-1]}</th>`;
+  });
+
+  return `<div class="main">
+    <div class="charts-2">
+      <div class="chart-card">
+        <div class="chart-title">Facturación mensual por año</div>
+        <canvas id="cYoY"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Margen % por año</div>
+        <canvas id="cYoYPct"></canvas>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-toolbar"><h2>Comparativo Año a Año</h2><span>${anios.join(' · ')}</span></div>
+      <div class="table-scroll">
+        <table><thead><tr>${thead}</tr></thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>
+  </div>`;
+}
+
+function dibujarGraficoYoY(todos) {
+  const anios = [...new Set(todos.map(m=>m.periodo.slice(0,4)))].sort();
+  if (anios.length < 2) return;
+  const MESES_NUM = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+  const COLORS_YOY = ['#3b82f6','#f87171','#4ade80','#fbbf24'];
+  const labels = MESES_SHORT;
+
+  const datasets1 = anios.map((a,i) => ({
+    label: a,
+    data: MESES_NUM.map(m => {
+      const mes = todos.find(x=>x.periodo===`${a}-${m}`);
+      return mes ? +(calcular(mes).subtotal_ingresos/1e6).toFixed(2) : null;
+    }),
+    borderColor:COLORS_YOY[i%4], backgroundColor:COLORS_YOY[i%4]+'22', fill:false, tension:0.3, pointRadius:3, spanGaps:true
+  }));
+  const datasets2 = anios.map((a,i) => ({
+    label: a,
+    data: MESES_NUM.map(m => {
+      const mes = todos.find(x=>x.periodo===`${a}-${m}`);
+      if (!mes) return null;
+      const c = calcular(mes);
+      return c.renta!=null ? +(c.renta*100).toFixed(1) : null;
+    }),
+    borderColor:COLORS_YOY[i%4], backgroundColor:COLORS_YOY[i%4]+'22', fill:false, tension:0.3, pointRadius:3, spanGaps:true
+  }));
+
+  const c1 = document.getElementById('cYoY');
+  if (c1) {
+    charts['cYoY'] = new Chart(c1, { type:'line', data:{labels,datasets:datasets1},
+      options:{ responsive:true, maintainAspectRatio:true,
+        plugins:{ legend:{ position:'bottom', labels:{font:{size:11}} } },
+        scales:{ x:{ticks:{font:{size:10}}}, y:{ticks:{callback:v=>`$${v}M`, font:{size:10}}} }
+      }
+    });
+  }
+  const c2 = document.getElementById('cYoYPct');
+  if (c2) {
+    charts['cYoYPct'] = new Chart(c2, { type:'line', data:{labels,datasets:datasets2},
+      options:{ responsive:true, maintainAspectRatio:true,
+        plugins:{ legend:{ position:'bottom', labels:{font:{size:11}} } },
+        scales:{ x:{ticks:{font:{size:10}}}, y:{ticks:{callback:v=>v+'%', font:{size:10}}} }
+      }
+    });
+  }
+}
+
+// ── TAB: CUENTAS A COBRAR ──────────────────────────────
+function renderTabCobrar() {
+  return `<div class="main">
+    <div class="cards" id="cobrarCards">
+      <div class="card"><div class="card-label">Cargando...</div><div class="card-value"><span class="spin">⟳</span></div></div>
+    </div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <h2>Facturas pendientes de cobro</h2>
+        <span id="cobrarMeta">consultando Colppy...</span>
+      </div>
+      <div class="table-scroll" id="cobrarTable">
+        <div style="padding:40px;text-align:center;color:var(--muted)"><span class="spin">⟳</span> Conectando a Colppy...</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function cargarCuentasCobrar() {
+  try {
+    const r    = await fetch('/api/cuentas_cobrar');
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error);
+
+    const facturas = data.facturas || [];
+    const total    = data.total    || 0;
+
+    // Cards
+    const cards = document.getElementById('cobrarCards');
+    if (cards) {
+      const vencidas = facturas.filter(f => f.fecha && f.fecha < new Date().toISOString().slice(0,10));
+      const totalVenc = vencidas.reduce((s,f)=>s+f.monto, 0);
+      cards.innerHTML = `
+        <div class="card">
+          <div class="card-label">Total a Cobrar</div>
+          <div class="card-value red">${fmtM(total)}</div>
+          <div class="card-sub">${facturas.length} factura${facturas.length!==1?'s':''} pendiente${facturas.length!==1?'s':''}</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Vencidas</div>
+          <div class="card-value ${totalVenc>0?'red':'green'}">${fmtM(totalVenc)}</div>
+          <div class="card-sub">${vencidas.length} facturas vencidas</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Promedio por factura</div>
+          <div class="card-value">${facturas.length ? fmtM(total/facturas.length) : '—'}</div>
+          <div class="card-sub">por factura pendiente</div>
+        </div>`;
+    }
+
+    const meta = document.getElementById('cobrarMeta');
+    if (meta) meta.textContent = `${facturas.length} facturas · Total: ${fmtM(total)}`;
+
+    // Tabla
+    const tbl = document.getElementById('cobrarTable');
+    if (!tbl) return;
+    if (!facturas.length) {
+      tbl.innerHTML = '<p style="padding:30px;text-align:center;color:var(--muted)">✅ No hay facturas pendientes.</p>';
+      return;
+    }
+    const hoy = new Date().toISOString().slice(0,10);
+    let h = '<table><thead><tr><th style="text-align:left">Cliente</th><th>N° Factura</th><th>Fecha</th><th>Monto</th><th>Estado</th></tr></thead><tbody>';
+    facturas.forEach(f => {
+      const vencida = f.fecha && f.fecha < hoy;
+      h += `<tr class="r-cobrar">
+        <td style="min-width:200px;max-width:280px;white-space:normal">${f.nombre}</td>
+        <td style="text-align:center">${f.nro||'—'}</td>
+        <td style="text-align:center">${f.fecha?f.fecha.slice(0,10):'—'}</td>
+        <td style="text-align:right">${fmtM(f.monto)}</td>
+        <td style="text-align:center">${vencida?'<span class="nn">⚠ Vencida</span>':'<span style="color:#92400e">⏳ Pendiente</span>'}</td>
+      </tr>`;
+    });
+    h += '</tbody></table>';
+    tbl.innerHTML = h;
+  } catch(e) {
+    const tbl = document.getElementById('cobrarTable');
+    if (tbl) tbl.innerHTML = `<p style="padding:30px;text-align:center;color:var(--red)">❌ Error: ${e.message}</p>`;
+    const cards = document.getElementById('cobrarCards');
+    if (cards) cards.innerHTML = '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  INTERACCIÓN
+// ═══════════════════════════════════════════════════════
+function setYear(y) { yearFiltro = y; render(); }
+function setTab(t)  { tabActual  = t; render(); }
+
+// ═══════════════════════════════════════════════════════
+//  TAB: FLUJO DE CAJA
+// ═══════════════════════════════════════════════════════
+function renderTabCaja() {
+  const todos  = [...(AGVSA_DATA.meses||[])].sort((a,b)=>a.periodo.localeCompare(b.periodo));
+  const ultimo = todos[todos.length-1];
+  const defMes = ultimo ? ultimo.periodo : new Date().toISOString().slice(0,7);
+
+  return `<div class="main">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase">Mes:</label>
+      <input type="month" id="cajaMes" value="${defMes}"
+             style="padding:7px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;outline:none"
+             onchange="cargarFlujoCaja()" />
+      <button onclick="cargarFlujoCaja()" class="btn-update" style="padding:7px 14px">🔄 Consultar</button>
+    </div>
+    <div class="cards" id="cajaCards">
+      <div class="card"><div class="card-label">Cargando...</div><div class="card-value"><span class="spin">⟳</span></div></div>
+    </div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <h2>Movimientos de caja</h2>
+        <span id="cajaMeta">consultando Colppy...</span>
+      </div>
+      <div class="table-scroll" id="cajaTabla">
+        <div style="padding:40px;text-align:center;color:var(--muted)"><span class="spin">⟳</span> Conectando a Colppy...</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function cargarFlujoCaja() {
+  const mes = document.getElementById('cajaMes')?.value;
+  if (!mes) return;
+
+  const cajaTabla = document.getElementById('cajaTabla');
+  const cajaCards = document.getElementById('cajaCards');
+  const cajaMeta  = document.getElementById('cajaMeta');
+
+  if (cajaTabla) cajaTabla.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)"><span class="spin">⟳</span> Consultando...</div>';
+
+  try {
+    const r    = await fetch(`/api/flujo_caja?mes=${mes}`);
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error);
+
+    const movs   = data.movimientos || [];
+    const ing    = data.total_ingresos;
+    const egr    = data.total_egresos;
+    const saldo  = data.saldo_neto;
+
+    if (cajaCards) cajaCards.innerHTML = `
+      <div class="card">
+        <div class="card-label">Ingresos de caja</div>
+        <div class="card-value green">${fmtM(ing)}</div>
+        <div class="card-sub">${movs.filter(m=>m.debe>0).length} movimientos</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Egresos de caja</div>
+        <div class="card-value red">${fmtM(egr)}</div>
+        <div class="card-sub">${movs.filter(m=>m.haber>0).length} movimientos</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Saldo neto</div>
+        <div class="card-value ${saldo>=0?'green':'red'}">${fmtM(saldo)}</div>
+        <div class="card-sub">${movs.length} movimientos totales</div>
+      </div>`;
+
+    if (cajaMeta) cajaMeta.textContent = `${movs.length} movimientos · ${labelLargo(mes)}`;
+
+    if (!movs.length) {
+      cajaTabla.innerHTML = '<p style="padding:30px;text-align:center;color:var(--muted)">Sin movimientos para este período.</p>';
+      return;
+    }
+
+    let h = '<table><thead><tr><th style="text-align:left">Fecha</th><th style="text-align:left">Descripción</th><th style="text-align:left">Cuenta</th><th>Ingreso</th><th>Egreso</th><th>Saldo</th></tr></thead><tbody>';
+    movs.forEach(m => {
+      h += `<tr class="r-dato">
+        <td style="min-width:90px;white-space:nowrap">${m.fecha||'—'}</td>
+        <td style="min-width:200px;max-width:320px;white-space:normal;text-align:left">${m.descripcion||'—'}</td>
+        <td style="text-align:left;color:var(--muted);font-size:11px">${m.cuenta||'—'}</td>
+        <td>${m.debe>0?`<span class="green">${fmtM(m.debe)}</span>`:'<span class="nd">—</span>'}</td>
+        <td>${m.haber>0?`<span class="red">${fmtM(m.haber)}</span>`:'<span class="nd">—</span>'}</td>
+        <td>${m.saldo?fmtM(m.saldo):'<span class="nd">—</span>'}</td>
+      </tr>`;
+    });
+    h += '</tbody></table>';
+    cajaTabla.innerHTML = h;
+
+  } catch(e) {
+    if (cajaTabla) cajaTabla.innerHTML = `<p style="padding:30px;text-align:center;color:var(--red)">❌ Error: ${e.message}</p>`;
+    if (cajaCards) cajaCards.innerHTML = '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  TAB: SIN CATEGORÍA
+// ═══════════════════════════════════════════════════════
+let _sinCatData = null;
+
+function renderTabSinCat() {
+  return `<div class="main">
+    <div id="sinCatContent">
+      <div style="padding:60px;text-align:center;color:var(--muted)"><span class="spin">⟳</span> Cargando...</div>
+    </div>
+  </div>`;
+}
+
+async function cargarSinCat() {
+  const cont = document.getElementById('sinCatContent');
+  if (!cont) return;
+  try {
+    const r    = await fetch('/api/sin_mapear');
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error);
+    _sinCatData = data;
+    renderSinCat(data);
+  } catch(e) {
+    if (cont) cont.innerHTML = `<div class="no-data"><h2>❌ Error</h2><p>${e.message}</p></div>`;
+  }
+}
+
+function renderSinCat(data) {
+  const cont = document.getElementById('sinCatContent');
+  if (!cont) return;
+
+  const sinVenta  = data.venta.filter(x => !x.categoria);
+  const sinCompra = data.compra.filter(x => !x.categoria);
+
+  const buildTabla = (lista, tipo, cats, filtro) => {
+    const mostrar = filtro === 'sin'  ? lista.filter(x => !x.categoria)
+                  : filtro === 'con'  ? lista.filter(x =>  x.categoria)
+                  : lista;
+    if (!mostrar.length) return `<p style="padding:20px;color:var(--muted)">Sin registros.</p>`;
+    const opts = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+    let h = `<table><thead><tr>
+      <th style="text-align:left">Nombre en Colppy</th>
+      <th>Total acumulado</th>
+      <th style="min-width:200px;text-align:left">Categoría actual</th>
+      <th style="min-width:200px;text-align:left">Cambiar a</th>
+      <th style="width:90px"></th>
+    </tr></thead><tbody>`;
+    mostrar.forEach((x, i) => {
+      const uid = `${tipo}_${i}_${Math.random().toString(36).slice(2,6)}`;
+      const rowCls = x.categoria ? 'r-dato' : 'r-dato';
+      const catActual = x.categoria
+        ? `<span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${x.categoria}</span>`
+        : `<span style="color:var(--red);font-size:11px;font-weight:600">⚠ Sin categoría</span>`;
+      h += `<tr class="${rowCls}" id="row_${uid}" style="${!x.categoria?'background:#fff7f7':''}">
+        <td style="min-width:200px;max-width:300px;white-space:normal">${x.nombre}</td>
+        <td style="text-align:right">${fmtM(x.monto)}</td>
+        <td>${catActual}</td>
+        <td>
+          <select id="sel_${uid}" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none">
+            <option value="">— sin cambio —</option>
+            ${opts}
+          </select>
+        </td>
+        <td style="text-align:center">
+          <button onclick="asignarCategoria('${x.nombre.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}','${tipo}','sel_${uid}','row_${uid}')"
+            style="background:var(--accent);color:white;border:none;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">
+            Guardar
+          </button>
+        </td>
+      </tr>`;
+    });
+    h += '</tbody></table>';
+    return h;
+  };
+
+  const filtroV = window._filtroVenta  || 'sin';
+  const filtroC = window._filtroCompra || 'sin';
+
+  const btnStyle = (activo) => activo
+    ? 'background:var(--accent);color:white;border:none;padding:4px 12px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer'
+    : 'background:#f1f5f9;color:var(--muted);border:1px solid var(--border);padding:4px 12px;border-radius:5px;font-size:11px;cursor:pointer';
+
+  cont.innerHTML = `
+    ${sinVenta.length || sinCompra.length ? `
+    <div class="alert-banner" style="margin-bottom:18px">
+      ⚠️ ${sinVenta.length} clientes de venta y ${sinCompra.length} proveedores de compra sin categoría
+    </div>` : `<div style="background:#f0fdf4;border:1px solid #86efac;padding:10px 18px;margin-bottom:18px;border-radius:6px;color:#15803d;font-weight:600">✅ Todo categorizado</div>`}
+
+    <div class="table-card" style="margin-bottom:18px">
+      <div class="table-toolbar">
+        <h2>📄 Clientes / Ventas (${data.venta.length} únicos)</h2>
+        <span style="display:flex;gap:6px">
+          <button style="${btnStyle(filtroV==='sin')}"  onclick="setFiltroSinCat('venta','sin')">Sin categoría (${sinVenta.length})</button>
+          <button style="${btnStyle(filtroV==='con')}"  onclick="setFiltroSinCat('venta','con')">Categorizados (${data.venta.length - sinVenta.length})</button>
+          <button style="${btnStyle(filtroV==='todos')}" onclick="setFiltroSinCat('venta','todos')">Todos</button>
+        </span>
+      </div>
+      <div class="table-scroll" id="tablaVenta">${buildTabla(data.venta, 'venta', data.cats_ingresos, filtroV)}</div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <h2>📄 Proveedores / Compras (${data.compra.length} únicos)</h2>
+        <span style="display:flex;gap:6px">
+          <button style="${btnStyle(filtroC==='sin')}"  onclick="setFiltroSinCat('compra','sin')">Sin categoría (${sinCompra.length})</button>
+          <button style="${btnStyle(filtroC==='con')}"  onclick="setFiltroSinCat('compra','con')">Categorizados (${data.compra.length - sinCompra.length})</button>
+          <button style="${btnStyle(filtroC==='todos')}" onclick="setFiltroSinCat('compra','todos')">Todos</button>
+        </span>
+      </div>
+      <div class="table-scroll" id="tablaCompra">${buildTabla(data.compra, 'compra', data.cats_egresos, filtroC)}</div>
+    </div>`;
+}
+
+function setFiltroSinCat(tipo, filtro) {
+  if (tipo === 'venta')  window._filtroVenta  = filtro;
+  if (tipo === 'compra') window._filtroCompra = filtro;
+  if (_sinCatData) renderSinCat(_sinCatData);
+}
+
+async function asignarCategoria(nombre, tipo, selectId, rowId) {
+  const sel = document.getElementById(selectId);
+  const cat = sel ? sel.value : '';
+  if (!cat) { alert('Elegí una categoría primero.'); return; }
+
+  const row = document.getElementById(rowId);
+  const btn = row?.querySelector('button');
+  if (btn) { btn.disabled = true; btn.textContent = '⟳'; }
+
+  try {
+    const r    = await fetch('/api/asignar_categoria', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, tipo, categoria: cat })
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error);
+
+    // Actualizar en memoria y remarcar fila
+    if (_sinCatData) {
+      const lista = tipo === 'venta' ? _sinCatData.venta : _sinCatData.compra;
+      const item  = lista.find(x => x.nombre === nombre);
+      if (item) item.categoria = cat;
+    }
+
+    if (row) {
+      row.style.background = '#f0fdf4';
+      row.querySelector('td:nth-child(3)').innerHTML =
+        `<span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${cat}</span>`;
+      if (btn) { btn.disabled = false; btn.textContent = '✅'; setTimeout(()=>{ btn.textContent='Guardar'; }, 2000); }
+    }
+
+    // Recargar AGVSA_DATA para que Estado de Resultados refleje los cambios
+    const rd = await fetch('/api/datos');
+    AGVSA_DATA = await rd.json();
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    alert(`❌ Error: ${e.message}`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  ENVIAR RESUMEN POR MAIL
+// ═══════════════════════════════════════════════════════
+async function enviarResumen() {
+  const btn = document.getElementById('btnMail');
+  if (btn) { btn.disabled = true; btn.textContent = '⟳'; }
+
+  try {
+    const todos   = [...(AGVSA_DATA.meses||[])].sort((a,b)=>a.periodo.localeCompare(b.periodo));
+    const ultimo  = todos[todos.length-1];
+    const body    = ultimo ? { periodo: ultimo.periodo } : {};
+
+    const r    = await fetch('/api/enviar_alerta', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await r.json();
+
+    if (data.enviado) {
+      alert(`✅ Mail enviado:\n${data.asunto}`);
+    } else if (data.html) {
+      // Abrir en ventana nueva para copiar/imprimir
+      const w = window.open('', '_blank', 'width=640,height=600');
+      w.document.write(`<title>Resumen AGVSA</title>${data.html}`);
+      w.document.close();
+      if (data.nota) {
+        setTimeout(()=> w.alert(`Nota: ${data.nota}\n\nConfigurá la variable GMAIL_APP_PASSWORD en el servidor para envío automático.`), 300);
+      }
+    } else {
+      alert(`❌ Error: ${data.error}`);
+    }
+  } catch(e) {
+    alert(`❌ Error de conexión: ${e.message}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📧'; }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+cargarDatos();
+</script>
+</body>
+</html>

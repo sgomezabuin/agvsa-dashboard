@@ -1,0 +1,173 @@
+{
+  "colppy": {
+    "api_usuario": "ColppyAPI",
+    "api_password_md5": "9410c05b7bfadea3ab7b573180862222",
+    "usuario": "sgomezabuin@gmail.com",
+    "password": "goldfish981",
+    "id_empresa": "21006"
+  },
+  "rutas": {
+    "excel": "C:/Users/Sebastian Gomez/Downloads/Estado de Resultado AGVSA.xlsx"
+  },
+  "mapeo_ingresos": {
+    "_ayuda": "Palabras que aparecen en el nombre del CLIENTE en Colppy → fila del cuadro.",
+    "honorarios_cons": [
+      "CONSORCIO",
+      "CONS PROP",
+      "CONS DE PROP",
+      "CONS. DE PROP",
+      "CONS AV",
+      "ISABEL LA CATO",
+      "SEGUI 3770",
+      "EMPRENDIMIENTO COSTA",
+      "CONS DE COPROP  COSTA RICA 3928-3938",
+      "SAN MARTIN 2355 S.A.",
+      "CERRITO 1036/40/44"
+    ],
+    "honorarios_sigeslibre": [
+      "SI-GES",
+      "LIBRE DEUDA",
+      "SIGES",
+      "Libres deudas"
+    ],
+    "honorarios_prov": [
+      "ARGENTINA SEGURIDAD S.R.L.",
+      "Rechard",
+      "ASCENSORES LENZ SRL",
+      "Roa Fariña Fernandez",
+      "Spadafora",
+      "Greco",
+      "SILVIA GRACIELA VERDURA",
+      "CRISTIAN ANDRES MARKOWICZ",
+      "Service Agüero",
+      "PIKELSON S.A.",
+      "Espinola",
+      "Adrian Electromecanica",
+      "ARAUJO DIEGO",
+      "Electro oeste",
+      "IDS BOILER S.R.L.",
+      "Copagua",
+      "Piedras",
+      "Anza",
+      "Milano",
+      "Chambon"
+    ],
+    "honorarios_atos": [
+      "ATOS"
+    ],
+    "intereses": [
+      "INTERES",
+      "RENTA"
+    ]
+  },
+  "mapeo_egresos": {
+    "_ayuda": "Palabras que aparecen en el nombre del PROVEEDOR en Colppy → fila del cuadro.",
+    "sueldos_i": [
+      "HABERES",
+      "IGNACIO",
+      "LUCIANO",
+      "KARINA ROMERO",
+      "MARIO HERNAN",
+      "EDUARDO IVAN",
+      "PERSONAL"
+    ],
+    "sueldos_ii": [
+      "AMIRA",
+      "CECILIA ANALIA",
+      "GRABOW",
+      "GRACIELA",
+      "HECTOR PAREDES",
+      "JAVIER RUBIO",
+      "JESICA",
+      "LAURA MORA",
+      "MAGERFLEISCH",
+      "MARINA INES",
+      "MILAGROS GUERRICO",
+      "MORENA ZELAYA",
+      "NOELIA FARASSO",
+      "OMAR PAREDES",
+      "PILAR DEL CANTO",
+      "SEBASTIAN PETTIS",
+      "NICARAGUA",
+      "VALERIA ELIANA DOMINGUEZ"
+    ],
+    "gastos_personal": [
+      "ALFAMEDICA",
+      "EDREAMS",
+      "GARAGE",
+      "HOSPITAL ALEMAN",
+      "ROSALVA",
+      "CONSEJO CIENCIAS"
+    ],
+    "f931": [
+      "F 931",
+      "APORTES PATRONALES",
+      "AFIP"
+    ],
+    "arca": [
+      "ACCIONES O PARTI",
+      "GANANCIAS SOCI",
+      "IIBB",
+      "IVA POSICION",
+      "RENTAS"
+    ],
+    "servicios": [
+      "ABL",
+      "BAYRES IT",
+      "CAMARA ARG DE LA PROP",
+      "CLARO",
+      "COLPPY",
+      "DOMINIO AGVSA",
+      "EDESUR",
+      "EXPENSAS PARANA",
+      "GARBARINO",
+      "GOOGLE",
+      "IPLAN",
+      "SEGUROS",
+      "SISTEMAS ADMINIST",
+      "ALLIANZ",
+      "VIATICOS -MOTOS"
+    ],
+    "mantenimiento": [
+      "AGUA SPARKLING",
+      "ASCENSORES LENZ",
+      "CAROCRUZ",
+      "COTO CENTRO",
+      "CURSO RPA",
+      "DAMIAN - REDES",
+      "IMPRENTA LOS GLAC",
+      "LIMPIEZA OFICINA",
+      "MANTENIMIENTO",
+      "TYT INSUMOS",
+      "UNICOPI",
+      "SUPERMECADO",
+      "EXPENSAS",
+      "LIMPIEZA"
+    ],
+    "honorarios": [
+      "MELISA CLAUDIA",
+      "ESCRIBANIA",
+      "DIEGO GOMEZ ABUIN"
+    ],
+    "correo": [
+      "CORREO OFICIAL",
+      "SUPERFOTO"
+    ],
+    "gastos_bancarios": [
+      "BANCO ROELA",
+      "BANCOR ICBC",
+      "ICBC CTA",
+      "ICBC INVERSION"
+    ],
+    "perdida_agvsa": [
+      "PERDIDAS AGVSA"
+    ],
+    "atos_fede": [
+      "FEDERICO ATOS",
+      "RETENCIONES ATOS"
+    ],
+    "retiro_socio": [
+      "SGA"
+    ]
+  }
+}
