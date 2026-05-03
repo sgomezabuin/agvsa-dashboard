@@ -827,10 +827,18 @@ function render() {
   const mesesVisibles = yearFiltro==='todos' ? todos : todos.filter(m=>m.periodo.startsWith(yearFiltro));
   const ultimoMes    = todos[todos.length-1];
   const ultimoCalcs  = ultimoMes ? calcular(ultimoMes) : {};
-  const genDate      = AGVSA_DATA.generado
-    ? new Date(AGVSA_DATA.generado).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+  const fmtFecha = iso => iso
+    ? new Date(iso).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
     : '';
-  const genPor = AGVSA_DATA.generado_por || '';
+  const fmtFechaCorta = iso => iso
+    ? new Date(iso + 'T00:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})
+    : '';
+
+  const syncDate       = fmtFecha(AGVSA_DATA.ultima_sync_colppy);
+  const syncPor        = AGVSA_DATA.ultima_sync_colppy_por || '';
+  const ultimaEnColppy = fmtFechaCorta(AGVSA_DATA.ultima_fecha_colppy);
+  const genDate        = fmtFecha(AGVSA_DATA.generado);
+  const genPor         = AGVSA_DATA.generado_por || '';
 
   // Alerta de margen
   let alertaHTML = '';
@@ -854,7 +862,10 @@ function render() {
     <div class="app-header">
       <div class="header-left">
         <h1>AGVSA · Dashboard</h1>
-        ${genDate ? `<span>Última carga: ${genDate}${genPor ? ` · <strong>${genPor}</strong>` : ''}</span>` : ''}
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:3px">
+          ${ultimaEnColppy ? `<span style="font-size:11px;opacity:0.8">📋 Último comprobante en Colppy: <strong>${ultimaEnColppy}</strong></span>` : ''}
+          ${syncDate ? `<span style="font-size:11px;opacity:0.8">🔄 Última sincronización: <strong>${syncDate}</strong>${syncPor ? ` · ${syncPor}` : ''}</span>` : ''}
+        </div>
       </div>
       <div class="header-right">
         <select class="year-select" onchange="setYear(this.value)">

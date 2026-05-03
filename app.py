@@ -551,7 +551,22 @@ def api_actualizar_rango():
         mes_data.pop("fv_count", None)
         mes_data.pop("fc_count", None)
 
+    # Fecha del comprobante más reciente en Colppy
+    ultima_fecha_colppy = None
+    for doc in (fv_todos + fc_todos):
+        for cf in ["fechaFactura", "fecha", "fechaEmision", "fechaContable"]:
+            v = doc.get(cf)
+            if v:
+                f = str(v)[:10]
+                if not ultima_fecha_colppy or f > ultima_fecha_colppy:
+                    ultima_fecha_colppy = f
+                break
+
     data["meses"] = meses
+    data["ultima_sync_colppy"]    = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    data["ultima_sync_colppy_por"] = session.get("nombre", "Usuario")
+    if ultima_fecha_colppy:
+        data["ultima_fecha_colppy"] = ultima_fecha_colppy
     guardar_datos(data)
 
     return jsonify({"ok": True, "meses": len(periodos), "detalle": resultados, "data": data})
