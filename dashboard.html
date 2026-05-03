@@ -319,7 +319,7 @@ body {
   border-radius: 10px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.07);
   border: 1px solid var(--border);
-  overflow: visible;
+  overflow: hidden;
   margin-bottom: 18px;
 }
 .table-toolbar {
@@ -332,7 +332,27 @@ body {
 .table-toolbar h2  { font-size: 13px; font-weight: 600; }
 .table-toolbar span { font-size: 11px; color: var(--muted); }
 .table-scroll { overflow-x: auto; }
-.table-scroll-results { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 120px); }
+.table-scroll-results { overflow-x: auto; position: relative; }
+#floating-header {
+  position: fixed;
+  top: 54px;
+  z-index: 50;
+  background: var(--primary);
+  overflow: hidden;
+  display: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+#floating-header table { border-collapse: collapse; margin: 0; }
+#floating-header th {
+  background: var(--primary);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
 
 table { border-collapse: collapse; width: 100%; }
 th, td {
@@ -901,7 +921,7 @@ function renderTab(todos, mesesVisibles, ultimoMes, ultimoCalcs, anios) {
   destroyCharts('c1','c2','cEgr','cYoY','cYoYPct');
 
   switch(tabActual) {
-    case 'resultados': cont.innerHTML = renderTabResultados(mesesVisibles, ultimoMes, ultimoCalcs); dibujarGraficosResultados(todos.slice(-18)); break;
+    case 'resultados': cont.innerHTML = renderTabResultados(mesesVisibles, ultimoMes, ultimoCalcs); dibujarGraficosResultados(todos.slice(-18)); setTimeout(initFloatingHeader, 100); break;
     case 'consorcios': cont.innerHTML = renderTabConsorcios(mesesVisibles); dibujarGraficoConsorcios(mesesVisibles); break;
     case 'proveedores':cont.innerHTML = renderTabProveedores(mesesVisibles); dibujarGraficoProveedores(mesesVisibles); break;
     case 'egresos':    cont.innerHTML = renderTabEgresos(mesesVisibles); dibujarGraficoEgresos(todos.slice(-18)); break;
@@ -1935,6 +1955,57 @@ async function enviarResumen() {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '📧'; }
   }
+}
+
+// ═══════════════════════════════════════════════════════
+//  FLOATING HEADER para tabla de resultados
+// ═══════════════════════════════════════════════════════
+function initFloatingHeader() {
+  // Eliminar instancia anterior
+  const old = document.getElementById('floating-header');
+  if (old) old.remove();
+
+  const scrollDiv = document.querySelector('.table-scroll-results');
+  if (!scrollDiv) return;
+  const origTable = scrollDiv.querySelector('table');
+  const origThead = origTable ? origTable.querySelector('thead') : null;
+  if (!origThead) return;
+
+  // Crear header flotante
+  const fh = document.createElement('div');
+  fh.id = 'floating-header';
+  document.body.appendChild(fh);
+
+  function syncHeader() {
+    const rect = scrollDiv.getBoundingClientRect();
+    const theadRect = origThead.getBoundingClientRect();
+    const appH = 54;
+
+    // Mostrar solo cuando el thead original ya scrolleó fuera de vista
+    if (theadRect.bottom < appH && rect.bottom > appH + 30) {
+      // Sincronizar anchos de columnas
+      const origThs = origThead.querySelectorAll('th');
+      let html = '<table><thead><tr>';
+      origThs.forEach(th => {
+        const w = th.getBoundingClientRect().width;
+        html += `<th style="width:${w}px;min-width:${w}px">${th.textContent}</th>`;
+      });
+      html += '</tr></thead></table>';
+      fh.innerHTML = html;
+      fh.style.display = 'block';
+      fh.style.left = rect.left + 'px';
+      fh.style.width = rect.width + 'px';
+    } else {
+      fh.style.display = 'none';
+    }
+
+    // Sincronizar scroll horizontal
+    fh.scrollLeft = scrollDiv.scrollLeft;
+  }
+
+  window.addEventListener('scroll', syncHeader, { passive: true });
+  scrollDiv.addEventListener('scroll', syncHeader, { passive: true });
+  syncHeader();
 }
 
 // ═══════════════════════════════════════════════════════
