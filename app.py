@@ -827,8 +827,10 @@ def reprocesar_data(data, cfg):
             if retiro_col is not None:
                 mes["retiro_socio"] = round(retiro_col, 2)
 
-            mes["ingresos"]   = {k: round(v, 2) for k, v in ing.items()}
-            mes["egresos"]    = {k: round(v, 2) for k, v in egr.items()}
+            mes["ingresos"]       = {k: round(v, 2) for k, v in ing.items()}
+            mes["egresos"]        = {k: round(v, 2) for k, v in egr.items()}
+            mes["otros_ingresos"] = round(sum(x["monto"] for x in sin_ing), 2)
+            mes["otros_egresos"]  = round(sum(x["monto"] for x in sin_egr), 2)
             mes["detalles"]   = {
                 "consorcios":  sorted([{"nombre": k, "monto": round(v,2)} for k,v in rank_ing.items()], key=lambda x:-x["monto"]),
                 "proveedores": sorted([{"nombre": k, "monto": round(v,2)} for k,v in rank_egr.items() if k != "retiro_socio"], key=lambda x:-x["monto"]),
@@ -863,7 +865,9 @@ def reprocesar_data(data, cfg):
                     nuevos_sin_c.append(x)
             sin["compra"] = nuevos_sin_c
 
-            mes["sin_mapear"] = sin
+            mes["sin_mapear"]    = sin
+            mes["otros_ingresos"] = round(sum(x["monto"] for x in sin.get("venta",  [])), 2)
+            mes["otros_egresos"]  = round(sum(x["monto"] for x in sin.get("compra", [])), 2)
 
     return data
 
