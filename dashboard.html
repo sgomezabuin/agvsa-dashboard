@@ -1148,10 +1148,8 @@ function dibujarGraficosResultados(meses) {
       data:{
         labels,
         datasets:[
-          { label:'Ingresos',     data:calcs.map(c=>+(c.subtotal_ingresos/1e6).toFixed(2)), backgroundColor:'#60a5facc', borderRadius:3 },
-          { label:'Egresos',      data:calcs.map(c=>+(c.subtotal_egresos/1e6).toFixed(2)),  backgroundColor:'#f87171cc', borderRadius:3 },
-          { label:'Margen',       data:calcs.map(c=>+(c.margen_bruto/1e6).toFixed(2)),       backgroundColor:'#4ade80cc', borderRadius:3 },
-          { label:'Retiro Socio', data:meses.map(m=>+((m.retiro_socio||0)/1e6).toFixed(2)), type:'line', borderColor:'#d97706', backgroundColor:'transparent', borderWidth:2, pointRadius:3, fill:false, tension:0.3 }
+          { label:'Ingresos', data:calcs.map(c=>+(c.subtotal_ingresos/1e6).toFixed(2)), backgroundColor:'#60a5facc', borderRadius:3 },
+          { label:'Egresos',  data:calcs.map(c=>+(c.subtotal_egresos/1e6).toFixed(2)),  backgroundColor:'#f87171cc', borderRadius:3 }
         ]
       },
       options:{ responsive:true, maintainAspectRatio:true,
