@@ -1592,6 +1592,8 @@ function dibujarGraficoYoY(todos) {
 }
 
 // ── TAB: CUENTAS A COBRAR ──────────────────────────────
+let _cacheCobrar = null;
+
 function renderTabCobrar() {
   return `<div class="main">
     <div class="cards" id="cobrarCards">
@@ -1600,7 +1602,10 @@ function renderTabCobrar() {
     <div class="table-card">
       <div class="table-toolbar">
         <h2>Facturas pendientes de cobro</h2>
-        <span id="cobrarMeta">consultando Colppy...</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="cobrarMeta" style="font-size:11px;color:var(--muted)"></span>
+          <button class="btn-update" onclick="cargarCuentasCobrar(true)" id="btnRefreshCobrar">🔄 Actualizar</button>
+        </div>
       </div>
       <div class="table-scroll" id="cobrarTable">
         <div style="padding:40px;text-align:center;color:var(--muted)"><span class="spin">⟳</span> Conectando a Colppy...</div>
@@ -1609,7 +1614,18 @@ function renderTabCobrar() {
   </div>`;
 }
 
-async function cargarCuentasCobrar() {
+async function cargarCuentasCobrar(forzar = false) {
+  // Usar caché si ya tenemos datos y no se forzó refresh
+  if (_cacheCobrar && !forzar) {
+    renderCobrar(_cacheCobrar);
+    return;
+  }
+
+  const btn = document.getElementById('btnRefreshCobrar');
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ Actualizando...'; }
+  const meta = document.getElementById('cobrarMeta');
+  if (meta) meta.textContent = 'Consultando Colppy...';
+
   try {
     const r    = await fetch('/api/cuentas_cobrar');
     const data = await r.json();
@@ -1617,32 +1633,6 @@ async function cargarCuentasCobrar() {
 
     const facturas = data.facturas || [];
     const total    = data.total    || 0;
-
-    // Cards
-    const cards = document.getElementById('cobrarCards');
-    if (cards) {
-      const vencidas = facturas.filter(f => f.fecha && f.fecha < new Date().toISOString().slice(0,10));
-      const totalVenc = vencidas.reduce((s,f)=>s+f.monto, 0);
-      cards.innerHTML = `
-        <div class="card">
-          <div class="card-label">Total a Cobrar</div>
-          <div class="card-value red">${fmtM(total)}</div>
-          <div class="card-sub">${facturas.length} factura${facturas.length!==1?'s':''} pendiente${facturas.length!==1?'s':''}</div>
-        </div>
-        <div class="card">
-          <div class="card-label">Vencidas</div>
-          <div class="card-value ${totalVenc>0?'red':'green'}">${fmtM(totalVenc)}</div>
-          <div class="card-sub">${vencidas.length} facturas vencidas</div>
-        </div>
-        <div class="card">
-          <div class="card-label">Promedio por factura</div>
-          <div class="card-value">${facturas.length ? fmtM(total/facturas.length) : '—'}</div>
-          <div class="card-sub">por factura pendiente</div>
-        </div>`;
-    }
-
-    const meta = document.getElementById('cobrarMeta');
-    if (meta) meta.textContent = `${facturas.length} facturas · Total: ${fmtM(total)}`;
 
     // Agrupar por año
     const porAnio = {};
@@ -1694,12 +1684,63 @@ async function cargarCuentasCobrar() {
     });
 
     tbl.innerHTML = tabsHTML + tablesHTML;
+    _cacheCobrar = { facturas, total };
+    const now = new Date().toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const metaEl = document.getElementById('cobrarMeta');
+    if (metaEl) metaEl.textContent = `${facturas.length} facturas · ${fmtM(total)} · actualizado ${now}`;
+
   } catch(e) {
     const tbl = document.getElementById('cobrarTable');
     if (tbl) tbl.innerHTML = `<p style="padding:30px;text-align:center;color:var(--red)">❌ Error: ${e.message}</p>`;
     const cards = document.getElementById('cobrarCards');
     if (cards) cards.innerHTML = '';
+  } finally {
+    const btn = document.getElementById('btnRefreshCobrar');
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Actualizar'; }
   }
+}
+
+function renderCobrar(cache) {
+  cargarCuentasCobrar._fromCache = true;
+  const { facturas, total } = cache;
+  const hoy = new Date().toISOString().slice(0,10);
+  const vencidas = facturas.filter(f => f.fecha && f.fecha < hoy);
+  const totalVenc = vencidas.reduce((s,f)=>s+f.monto, 0);
+
+  const cards = document.getElementById('cobrarCards');
+  if (cards) cards.innerHTML = `
+    <div class="card"><div class="card-label">Total a Cobrar</div><div class="card-value red">${fmtM(total)}</div><div class="card-sub">${facturas.length} facturas pendientes</div></div>
+    <div class="card"><div class="card-label">Vencidas</div><div class="card-value ${totalVenc>0?'red':'green'}">${fmtM(totalVenc)}</div><div class="card-sub">${vencidas.length} facturas vencidas</div></div>
+    <div class="card"><div class="card-label">Promedio por factura</div><div class="card-value">${facturas.length?fmtM(total/facturas.length):'—'}</div><div class="card-sub">por factura pendiente</div></div>`;
+
+  const porAnio = {};
+  facturas.forEach(f => {
+    const anio = (f.fecha||'0000').slice(0,4);
+    if (!porAnio[anio]) porAnio[anio] = [];
+    porAnio[anio].push(f);
+  });
+  const anios = Object.keys(porAnio).sort().reverse();
+  const tbl = document.getElementById('cobrarTable');
+  if (!tbl) return;
+  if (!facturas.length) { tbl.innerHTML = '<p style="padding:30px;text-align:center;color:var(--muted)">✅ No hay facturas pendientes.</p>'; return; }
+
+  let tabsHTML = '<div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;flex-wrap:wrap">';
+  anios.forEach((a,i) => {
+    const tot = porAnio[a].reduce((s,f)=>s+f.monto,0);
+    tabsHTML += `<button onclick="mostrarAniosCobrar('${a}')" id="tab-cobrar-${a}" style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:600;border-bottom:${i===0?'2px solid var(--accent)':'2px solid transparent'};color:${i===0?'var(--accent)':'var(--muted)'};margin-bottom:-2px">${a} <span style="font-size:10px;opacity:0.7">${fmtM(tot)}</span></button>`;
+  });
+  tabsHTML += '</div>';
+  let tablesHTML = '';
+  anios.forEach((a,i) => {
+    tablesHTML += `<div id="cobrar-anio-${a}" style="display:${i===0?'block':'none'}"><table><thead><tr><th style="text-align:left">Cliente</th><th>N° Factura</th><th>Fecha</th><th>Monto</th><th>Estado</th></tr></thead><tbody>`;
+    const subtotal = porAnio[a].reduce((s,f)=>s+f.monto,0);
+    porAnio[a].forEach(f => {
+      const vencida = f.fecha && f.fecha < hoy;
+      tablesHTML += `<tr class="r-cobrar"><td style="min-width:200px;max-width:280px;white-space:normal">${f.nombre}</td><td style="text-align:center">${f.nro||'—'}</td><td style="text-align:center">${f.fecha?f.fecha.slice(0,10):'—'}</td><td style="text-align:right">${fmtM(f.monto)}</td><td style="text-align:center">${vencida?'<span class="nn">⚠ Vencida</span>':'<span style="color:#92400e">⏳ Pendiente</span>'}</td></tr>`;
+    });
+    tablesHTML += `<tr class="r-cobrar-total"><td colspan="3">Total ${a}</td><td style="text-align:right">${fmtM(subtotal)}</td><td></td></tr></tbody></table></div>`;
+  });
+  tbl.innerHTML = tabsHTML + tablesHTML;
 }
 
 // ═══════════════════════════════════════════════════════
