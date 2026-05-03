@@ -41,6 +41,8 @@ def login():
         if (request.form.get("usuario") == DASHBOARD_USER and
                 request.form.get("password") == DASHBOARD_PASS):
             session["logged_in"] = True
+            nombre = (request.form.get("nombre") or "").strip() or "Usuario"
+            session["nombre"] = nombre
             return redirect("/")
         error = "Usuario o contraseña incorrectos"
     return f"""<!DOCTYPE html>
@@ -75,8 +77,10 @@ button:hover {{ background: #2563eb; }}
   <p>Ingresá tus credenciales para continuar</p>
   {'<div class="error">⚠ ' + error + '</div>' if error else ''}
   <form method="POST">
+    <label>Tu nombre</label>
+    <input type="text" name="nombre" placeholder="ej: Sebastian" autofocus />
     <label>Usuario</label>
-    <input type="text" name="usuario" autofocus />
+    <input type="text" name="usuario" />
     <label>Contraseña</label>
     <input type="password" name="password" />
     <button type="submit">Ingresar</button>
@@ -155,8 +159,9 @@ def cargar_datos():
     except:
         return {"generado": None, "meses": []}
 
-def guardar_datos(data):
-    data["generado"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+def guardar_datos(data, usuario=None):
+    data["generado"]    = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    data["generado_por"] = usuario or session.get("nombre", "Sistema")
     os.makedirs(os.path.dirname(DATA_PATH) or ".", exist_ok=True)
     with open(DATA_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
