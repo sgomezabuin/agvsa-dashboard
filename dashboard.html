@@ -361,8 +361,7 @@ thead th {
   letter-spacing: 0.3px;
   padding-top: 8px;
   padding-bottom: 8px;
-  position: sticky;
-  top: 54px;
+  position: relative;
   z-index: 5;
 }
 thead th:first-child { z-index: 6; }
@@ -1934,6 +1933,43 @@ async function enviarResumen() {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '📧'; }
   }
+}
+
+// ═══════════════════════════════════════════════════════
+//  STICKY HEADER con JavaScript (workaround overflow-x)
+// ═══════════════════════════════════════════════════════
+function initStickyHeader() {
+  const appHeader = document.querySelector('.app-header');
+  const tableScroll = document.querySelector('.table-scroll');
+  if (!appHeader || !tableScroll) return;
+
+  const thead = tableScroll.querySelector('thead');
+  if (!thead) return;
+
+  const appH = appHeader.getBoundingClientRect().height;
+  const tableTop = tableScroll.getBoundingClientRect().top + window.scrollY;
+
+  function onScroll() {
+    const scrollY = window.scrollY;
+    const offset = scrollY + appH - tableTop;
+    if (offset > 0) {
+      thead.style.transform = `translateY(${offset}px)`;
+    } else {
+      thead.style.transform = '';
+    }
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+}
+
+// Re-inicializar sticky header cada vez que se renderiza la tabla
+const _origRender = window.render;
+if (typeof render === 'function') {
+  const _origRenderFn = render;
+  window.render = function(...args) {
+    _origRenderFn(...args);
+    setTimeout(initStickyHeader, 50);
+  };
 }
 
 // ═══════════════════════════════════════════════════════
