@@ -331,7 +331,8 @@ body {
 }
 .table-toolbar h2  { font-size: 13px; font-weight: 600; }
 .table-toolbar span { font-size: 11px; color: var(--muted); }
-.table-scroll { overflow-x: auto; overflow-y: visible; }
+.table-scroll { overflow-x: auto; }
+.table-scroll-results { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 120px); }
 
 table { border-collapse: collapse; width: 100%; }
 th, td {
@@ -361,7 +362,8 @@ thead th {
   letter-spacing: 0.3px;
   padding-top: 8px;
   padding-bottom: 8px;
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 5;
 }
 thead th:first-child { z-index: 6; }
@@ -929,7 +931,7 @@ function renderTabResultados(mesesVisibles, ultimoMes, ultimoCalcs) {
         <h2>Estado de Resultados · ${yearFiltro==='todos'?'Histórico completo':yearFiltro}</h2>
         <span>${mesesVisibles.length} mes${mesesVisibles.length!==1?'es':''}</span>
       </div>
-      <div class="table-scroll">${renderTabla(mesesVisibles)}</div>
+      <div class="table-scroll table-scroll-results">${renderTabla(mesesVisibles)}</div>
     </div>
   </div>`;
 }
@@ -1933,43 +1935,6 @@ async function enviarResumen() {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '📧'; }
   }
-}
-
-// ═══════════════════════════════════════════════════════
-//  STICKY HEADER con JavaScript (workaround overflow-x)
-// ═══════════════════════════════════════════════════════
-function initStickyHeader() {
-  const appHeader = document.querySelector('.app-header');
-  const tableScroll = document.querySelector('.table-scroll');
-  if (!appHeader || !tableScroll) return;
-
-  const thead = tableScroll.querySelector('thead');
-  if (!thead) return;
-
-  const appH = appHeader.getBoundingClientRect().height;
-  const tableTop = tableScroll.getBoundingClientRect().top + window.scrollY;
-
-  function onScroll() {
-    const scrollY = window.scrollY;
-    const offset = scrollY + appH - tableTop;
-    if (offset > 0) {
-      thead.style.transform = `translateY(${offset}px)`;
-    } else {
-      thead.style.transform = '';
-    }
-  }
-
-  window.addEventListener('scroll', onScroll, { passive: true });
-}
-
-// Re-inicializar sticky header cada vez que se renderiza la tabla
-const _origRender = window.render;
-if (typeof render === 'function') {
-  const _origRenderFn = render;
-  window.render = function(...args) {
-    _origRenderFn(...args);
-    setTimeout(initStickyHeader, 50);
-  };
 }
 
 // ═══════════════════════════════════════════════════════
