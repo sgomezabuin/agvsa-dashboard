@@ -1644,27 +1644,56 @@ async function cargarCuentasCobrar() {
     const meta = document.getElementById('cobrarMeta');
     if (meta) meta.textContent = `${facturas.length} facturas · Total: ${fmtM(total)}`;
 
-    // Tabla
+    // Agrupar por año
+    const porAnio = {};
+    const hoy = new Date().toISOString().slice(0,10);
+    facturas.forEach(f => {
+      const anio = (f.fecha || '0000').slice(0,4);
+      if (!porAnio[anio]) porAnio[anio] = [];
+      porAnio[anio].push(f);
+    });
+    const anios = Object.keys(porAnio).sort().reverse();
+
+    // Tabs internas por año
     const tbl = document.getElementById('cobrarTable');
     if (!tbl) return;
     if (!facturas.length) {
       tbl.innerHTML = '<p style="padding:30px;text-align:center;color:var(--muted)">✅ No hay facturas pendientes.</p>';
       return;
     }
-    const hoy = new Date().toISOString().slice(0,10);
-    let h = '<table><thead><tr><th style="text-align:left">Cliente</th><th>N° Factura</th><th>Fecha</th><th>Monto</th><th>Estado</th></tr></thead><tbody>';
-    facturas.forEach(f => {
-      const vencida = f.fecha && f.fecha < hoy;
-      h += `<tr class="r-cobrar">
-        <td style="min-width:200px;max-width:280px;white-space:normal">${f.nombre}</td>
-        <td style="text-align:center">${f.nro||'—'}</td>
-        <td style="text-align:center">${f.fecha?f.fecha.slice(0,10):'—'}</td>
-        <td style="text-align:right">${fmtM(f.monto)}</td>
-        <td style="text-align:center">${vencida?'<span class="nn">⚠ Vencida</span>':'<span style="color:#92400e">⏳ Pendiente</span>'}</td>
-      </tr>`;
+
+    let tabsHTML = '<div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;flex-wrap:wrap">';
+    anios.forEach((a, i) => {
+      const tot = porAnio[a].reduce((s,f)=>s+f.monto,0);
+      tabsHTML += `<button onclick="mostrarAniosCobrar('${a}')" id="tab-cobrar-${a}"
+        style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:600;
+        border-bottom:${i===0?'2px solid var(--accent)':'2px solid transparent'};
+        color:${i===0?'var(--accent)':'var(--muted)'};margin-bottom:-2px">
+        ${a} <span style="font-size:10px;opacity:0.7">${fmtM(tot)}</span>
+      </button>`;
     });
-    h += '</tbody></table>';
-    tbl.innerHTML = h;
+    tabsHTML += '</div>';
+
+    let tablesHTML = '';
+    anios.forEach((a, i) => {
+      tablesHTML += `<div id="cobrar-anio-${a}" style="display:${i===0?'block':'none'}">`;
+      tablesHTML += '<table><thead><tr><th style="text-align:left">Cliente</th><th>N° Factura</th><th>Fecha</th><th>Monto</th><th>Estado</th></tr></thead><tbody>';
+      const subtotal = porAnio[a].reduce((s,f)=>s+f.monto,0);
+      porAnio[a].forEach(f => {
+        const vencida = f.fecha && f.fecha < hoy;
+        tablesHTML += `<tr class="r-cobrar">
+          <td style="min-width:200px;max-width:280px;white-space:normal">${f.nombre}</td>
+          <td style="text-align:center">${f.nro||'—'}</td>
+          <td style="text-align:center">${f.fecha?f.fecha.slice(0,10):'—'}</td>
+          <td style="text-align:right">${fmtM(f.monto)}</td>
+          <td style="text-align:center">${vencida?'<span class="nn">⚠ Vencida</span>':'<span style="color:#92400e">⏳ Pendiente</span>'}</td>
+        </tr>`;
+      });
+      tablesHTML += `<tr class="r-cobrar-total"><td colspan="3">Total ${a}</td><td style="text-align:right">${fmtM(subtotal)}</td><td></td></tr>`;
+      tablesHTML += '</tbody></table></div>';
+    });
+
+    tbl.innerHTML = tabsHTML + tablesHTML;
   } catch(e) {
     const tbl = document.getElementById('cobrarTable');
     if (tbl) tbl.innerHTML = `<p style="padding:30px;text-align:center;color:var(--red)">❌ Error: ${e.message}</p>`;
@@ -1676,6 +1705,18 @@ async function cargarCuentasCobrar() {
 // ═══════════════════════════════════════════════════════
 //  INTERACCIÓN
 // ═══════════════════════════════════════════════════════
+function mostrarAniosCobrar(anio) {
+  document.querySelectorAll('[id^="cobrar-anio-"]').forEach(d => d.style.display = 'none');
+  document.querySelectorAll('[id^="tab-cobrar-"]').forEach(b => {
+    b.style.borderBottom = '2px solid transparent';
+    b.style.color = 'var(--muted)';
+  });
+  const div = document.getElementById(`cobrar-anio-${anio}`);
+  const btn = document.getElementById(`tab-cobrar-${anio}`);
+  if (div) div.style.display = 'block';
+  if (btn) { btn.style.borderBottom = '2px solid var(--accent)'; btn.style.color = 'var(--accent)'; }
+}
+
 function setYear(y) { yearFiltro = y; render(); }
 function setTab(t)  { tabActual  = t; render(); }
 
