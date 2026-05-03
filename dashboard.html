@@ -399,6 +399,7 @@ tr.r-acum td        { font-weight: 700; font-size: 13px; background: #fffbeb; bo
 tr.r-acum td.editable-cell { cursor: pointer; }
 tr.r-acum td.editable-cell:hover { background: #fef3c7; }
 tr.r-promedio td    { font-weight: 600; font-size: 12px; background: #f0fdf4; color: #166534; border-top: 1px dashed #86efac; }
+tr.r-otros td       { background: #fafafa; color: var(--muted); font-style: italic; font-size: 12px; }
 tr.r-pct td         { background: #fafafa; color: var(--muted); font-size: 12px; }
 tr.r-usd td         { background: #eff6ff; color: #1d4ed8; }
 tr.r-tc td          { background: #fefce8; color: #854d0e; font-weight: 600; }
@@ -519,6 +520,7 @@ const FILAS = [
   { t:'dato',       label:'Honorarios Prov',                 key:'i.honorarios_prov' },
   { t:'dato',       label:'Honorarios Atos',                 key:'i.honorarios_atos' },
   { t:'dato',       label:'Intereses por fondos',            key:'i.intereses' },
+  { t:'otros',      label:'Otros ingresos (sin categoría)',  key:'otros_ingresos' },
   { t:'subtotal',   label:'SUBTOTAL INGRESOS',               calc:'subtotal_ingresos' },
   { t:'pct',        label:'% Sueldos / Facturación',         calc:'pct_sueldos', fmt:'pct' },
   { t:'sep' },
@@ -535,6 +537,7 @@ const FILAS = [
   { t:'dato',       label:'Gastos Bancarios',               key:'e.gastos_bancarios' },
   { t:'dato',       label:'Pérdida AGVSA',                  key:'e.perdida_agvsa' },
   { t:'dato',       label:'Atos Fede',                      key:'e.atos_fede' },
+  { t:'otros',      label:'Otros egresos (sin categoría)',  key:'otros_egresos' },
   { t:'subtotal',   label:'SUBTOTAL EGRESOS',               calc:'subtotal_egresos' },
   { t:'sep' },
   { t:'margen',     label:'MARGEN BRUTO',                   calc:'margen_bruto' },
@@ -760,10 +763,10 @@ function calcular(mes) {
   const i  = mes.ingresos    || {};
   const e  = mes.egresos     || {};
   const tc = mes.tipo_cambio || {};
-  // Suma dinámica de TODAS las categorías de ingresos/egresos
-  const subtotal_ingresos = Object.values(i).reduce((a,b)=>a+(Number(b)||0), 0);
+  // Suma dinámica de TODAS las categorías de ingresos/egresos + otros sin categoría
+  const subtotal_ingresos = Object.values(i).reduce((a,b)=>a+(Number(b)||0), 0) + (mes.otros_ingresos||0);
   const sueldos_total = (e.sueldos_i||0)+(e.sueldos_ii||0)+(e.gastos_personal||0)+(e.f931||0);
-  const subtotal_egresos = Object.values(e).reduce((a,b)=>a+(Number(b)||0), 0);
+  const subtotal_egresos = Object.values(e).reduce((a,b)=>a+(Number(b)||0), 0) + (mes.otros_egresos||0);
   const margen_bruto = subtotal_ingresos - subtotal_egresos;
   const retiro       = mes.retiro_socio || 0;
   const diferencia   = margen_bruto - retiro;
@@ -1035,6 +1038,16 @@ function renderTabla(meses) {
   FILAS.forEach(f => {
     if (f.t==='sep')     { h += `<tr class="r-sep"><td colspan="${meses.length+1}"></td></tr>`; return; }
     if (f.t==='section') { h += `<tr class="r-section"><td colspan="${meses.length+1}">${f.label}</td></tr>`; return; }
+
+    if (f.t==='otros') {
+      h += `<tr class="r-otros"><td>${f.label}</td>`;
+      meses.forEach(mes => {
+        const val = mes[f.key] || 0;
+        h += `<td>${val > 0 ? fmtM(val) : '<span class="nd">—</span>'}</td>`;
+      });
+      h += '</tr>';
+      return;
+    }
 
     // Fila especial: diferencia acumulada
     if (f.t==='acum') {

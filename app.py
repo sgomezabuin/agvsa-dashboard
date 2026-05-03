@@ -442,10 +442,15 @@ def procesar_mes(fv_todos, fc_todos, periodo, cfg):
             acc[x["nombre"]] = acc.get(x["nombre"], 0) + x["monto"]
         return [{"nombre": k, "monto": round(v, 2)} for k, v in sorted(acc.items(), key=lambda i: -i[1])]
 
+    otros_ing = round(sum(x["monto"] for x in sin_ing), 2)
+    otros_egr = round(sum(x["monto"] for x in sin_egr), 2)
+
     mes_data = {
         "periodo":    periodo,
         "ingresos":   ing,
         "egresos":    egr,
+        "otros_ingresos": otros_ing,
+        "otros_egresos":  otros_egr,
         "detalles":   {"consorcios": rank_ing, "proveedores": rank_egr},
         "sin_mapear": {"venta": _acum_sin(sin_ing), "compra": _acum_sin(sin_egr)},
         "todos":      {"venta": todos_ing, "compra": todos_egr},
