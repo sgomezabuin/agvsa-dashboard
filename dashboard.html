@@ -373,6 +373,10 @@ tr.r-dato:hover td  { background: #f8fafc; }
 tr.r-subtotal td    { background: #f1f5f9; font-weight: 600; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
 tr.r-margen td      { background: #f0fdf4; font-weight: 700; color: var(--green); font-size: 13px; border-top: 2px solid #86efac; }
 tr.r-diferencia td  { font-weight: 700; font-size: 13px; background: #fefce8; border-top: 1px solid #fde047; }
+tr.r-acum td        { font-weight: 700; font-size: 13px; background: #fffbeb; border-top: 1px dashed #fbbf24; color: #92400e; }
+tr.r-acum td.editable-cell { cursor: pointer; }
+tr.r-acum td.editable-cell:hover { background: #fef3c7; }
+tr.r-promedio td    { font-weight: 600; font-size: 12px; background: #f0fdf4; color: #166534; border-top: 1px dashed #86efac; }
 tr.r-pct td         { background: #fafafa; color: var(--muted); font-size: 12px; }
 tr.r-usd td         { background: #eff6ff; color: #1d4ed8; }
 tr.r-tc td          { background: #fefce8; color: #854d0e; font-weight: 600; }
@@ -514,6 +518,7 @@ const FILAS = [
   { t:'margen',     label:'MARGEN BRUTO',                   calc:'margen_bruto' },
   { t:'dato',       label:'Retiro Socio',                   key:'retiro_socio' },
   { t:'diferencia', label:'DIFERENCIA',                     calc:'diferencia' },
+  { t:'acum',       label:'DIFERENCIA ACUMULADA',           calc:'diferencia' },
   { t:'pct',        label:'Renta sobre facturación',        calc:'renta', fmt:'pct' },
   { t:'sep' },
   { t:'section',    label:'EN DÓLARES — Blue' },
@@ -529,6 +534,8 @@ const FILAS = [
   { t:'section',    label:'TIPO DE CAMBIO' },
   { t:'tc',         label:'Dólar Blue',                     key:'tc.blue' },
   { t:'tc',         label:'Dólar Oficial',                  key:'tc.oficial' },
+  { t:'sep' },
+  { t:'promedio',   label:'PROMEDIO MARGEN BRUTO ANUAL',    calc:'margen_bruto' },
 ];
 
 // Categorías de egresos para gráfico de evolución
@@ -554,6 +561,8 @@ const ALERTA_MARGEN_PCT = 15;
 //  ESTADO GLOBAL
 // ═══════════════════════════════════════════════════════
 let AGVSA_DATA = { generado: null, meses: [] };
+// Mapa de ajustes manuales al acumulado: { "YYYY-MM": valor_base }
+let ACUM_BASE = {};
 let yearFiltro = 'todos';
 let tabActual  = 'resultados';
 let charts = {};
@@ -980,9 +989,56 @@ function renderTabla(meses) {
   meses.forEach(m => { h += `<th>${labelCorto(m.periodo)}</th>`; });
   h += '</tr></thead><tbody>';
 
+  // Calcular diferencia acumulada por mes
+  let acumValores = [];
+  let acum = 0;
+  meses.forEach((mes, idx) => {
+    const periodo = mes.periodo;
+    if (ACUM_BASE[periodo] !== undefined) acum = ACUM_BASE[periodo];
+    acum += (calcs[idx].diferencia ?? 0);
+    acumValores.push(acum);
+  });
+
+  // Calcular promedio anual de margen bruto
+  const promedioAnual = {};
+  meses.forEach((mes, idx) => {
+    const anio = mes.periodo.slice(0,4);
+    if (!promedioAnual[anio]) promedioAnual[anio] = { suma: 0, cnt: 0 };
+    if (calcs[idx].margen_bruto != null) {
+      promedioAnual[anio].suma += calcs[idx].margen_bruto;
+      promedioAnual[anio].cnt++;
+    }
+  });
+
   FILAS.forEach(f => {
     if (f.t==='sep')     { h += `<tr class="r-sep"><td colspan="${meses.length+1}"></td></tr>`; return; }
     if (f.t==='section') { h += `<tr class="r-section"><td colspan="${meses.length+1}">${f.label}</td></tr>`; return; }
+
+    // Fila especial: diferencia acumulada
+    if (f.t==='acum') {
+      h += `<tr class="r-acum"><td>${f.label} <span style="font-size:10px;color:var(--muted)">(clic en celda para ajustar base)</span></td>`;
+      meses.forEach((mes, idx) => {
+        const periodo = mes.periodo;
+        const val = acumValores[idx];
+        const color = val >= 0 ? 'var(--green)' : 'var(--red)';
+        h += `<td class="editable-cell" style="color:${color}" onclick="editarAcum('${periodo}', ${val})" title="Clic para ajustar el acumulado desde este mes">${fmtM(val)}</td>`;
+      });
+      h += '</tr>';
+      return;
+    }
+
+    // Fila especial: promedio anual de margen
+    if (f.t==='promedio') {
+      h += `<tr class="r-promedio"><td>${f.label}</td>`;
+      meses.forEach((mes) => {
+        const anio = mes.periodo.slice(0,4);
+        const p = promedioAnual[anio];
+        const val = p && p.cnt > 0 ? p.suma / p.cnt : null;
+        h += `<td>${val != null ? fmtM(val) : '<span class="nd">—</span>'}</td>`;
+      });
+      h += '</tr>';
+      return;
+    }
 
     const cls = { dato:'r-dato', subtotal:'r-subtotal', margen:'r-margen',
                   diferencia:'r-diferencia', pct:'r-pct', usd:'r-usd', tc:'r-tc' }[f.t] || 'r-dato';
@@ -1004,7 +1060,6 @@ function renderTabla(meses) {
 
     // Filas de detalle (ocultas por defecto)
     if (tieneDetalle) {
-      // Recolectar todos los nombres únicos que aparecen en algún mes
       const todosNombres = [...new Set(detIdxs.flatMap(idx => (idx[f.key]||[]).map(x=>x.nombre)))];
       todosNombres.forEach(nombre => {
         h += `<tr class="r-dato det-row" id="${rowId}" style="display:none;background:#f8fafc">`;
@@ -1020,6 +1075,22 @@ function renderTabla(meses) {
 
   h += '</tbody></table>';
   return h;
+}
+
+function editarAcum(periodo, valorActual) {
+  const input = prompt(
+    `Ajustar acumulado desde ${periodo}\n\nIngresá el valor base desde el que debe acumular (el acumulado anterior a este mes):`,
+    Math.round(valorActual - (()=>{
+      const meses = (AGVSA_DATA.meses||[]).filter(m=> yearFiltro==='todos'||m.periodo.startsWith(yearFiltro));
+      const idx = meses.findIndex(m=>m.periodo===periodo);
+      return idx>=0 ? (calcular(meses[idx]).diferencia||0) : 0;
+    })())
+  );
+  if (input === null) return;
+  const val = parseFloat(input.replace(/\./g,'').replace(',','.'));
+  if (isNaN(val)) { alert('Valor inválido'); return; }
+  ACUM_BASE[periodo] = val;
+  render();
 }
 
 function toggleDet(rowId) {
@@ -1055,11 +1126,42 @@ function dibujarGraficosResultados(meses) {
   }
   const c2 = document.getElementById('c2');
   if (c2) {
+    // Calcular promedio anual de margen % y construir dataset de líneas por año
+    const aniosProm = {};
+    meses.forEach((m, i) => {
+      const anio = m.periodo.slice(0,4);
+      if (!aniosProm[anio]) aniosProm[anio] = { suma:0, cnt:0, indices:[] };
+      if (calcs[i].renta != null) {
+        aniosProm[anio].suma += calcs[i].renta * 100;
+        aniosProm[anio].cnt++;
+      }
+      aniosProm[anio].indices.push(i);
+    });
+
+    const coloresAnio = ['#f59e0b','#8b5cf6','#06b6d4','#ec4899','#10b981','#f97316','#6366f1','#14b8a6'];
+    const datasetsAnio = Object.entries(aniosProm).map(([anio, info], ai) => {
+      const prom = info.cnt > 0 ? +(info.suma / info.cnt).toFixed(1) : null;
+      const data = meses.map((_, i) => info.indices.includes(i) ? prom : null);
+      return {
+        label: `Prom ${anio}`,
+        data,
+        borderColor: coloresAnio[ai % coloresAnio.length],
+        borderWidth: 2,
+        borderDash: [6, 3],
+        pointRadius: 0,
+        fill: false,
+        tension: 0,
+        spanGaps: false
+      };
+    });
+
     charts['c2'] = new Chart(c2, {
       type:'line',
-      data:{ labels, datasets:[{ label:'Margen %', data:calcs.map(c=>c.renta!=null?+(c.renta*100).toFixed(1):null),
-        borderColor:'#3b82f6', backgroundColor:'#3b82f618', fill:true, tension:0.35, pointRadius:3, spanGaps:true }]
-      },
+      data:{ labels, datasets:[
+        { label:'Margen %', data:calcs.map(c=>c.renta!=null?+(c.renta*100).toFixed(1):null),
+          borderColor:'#3b82f6', backgroundColor:'#3b82f618', fill:true, tension:0.35, pointRadius:3, spanGaps:true },
+        ...datasetsAnio
+      ]},
       options:{ responsive:true, maintainAspectRatio:true,
         plugins:{ legend:{ position:'bottom', labels:{font:{size:11}} },
           annotation:{ annotations:[{ type:'line', yMin:ALERTA_MARGEN_PCT, yMax:ALERTA_MARGEN_PCT, borderColor:'red', borderWidth:1, borderDash:[4,4] }] }
